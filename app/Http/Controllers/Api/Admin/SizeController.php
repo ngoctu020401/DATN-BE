@@ -55,13 +55,13 @@ class SizeController extends Controller
         //
         try {
             //code...
-            $color = Color::find($id);
-            if (!$color) {
+            $size = Size::find($id);
+            if (!$size) {
                 return response()->json([
                     'message' => 'Không tìm thấy kích thước'
                 ], 500);
             }
-            return response()->json($color, 200);
+            return response()->json($size, 200);
         } catch (\Throwable $th) {
             //throw $th;
             return response()->json([
