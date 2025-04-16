@@ -62,12 +62,6 @@ class SizeController extends Controller
                     'message' => 'Không tìm thấy kích thước'
                 ], 500);
             }
-            $usedInVariations = ProductVariation::where('size_id', $id)->exists();
-            if ($usedInVariations) {
-                return response()->json([
-                    'message' => 'Không thể xoá kích thước vì đang được sử dụng trong sản phẩm!',
-                ], 400);
-            }
             return response()->json($size, 200);
         } catch (\Throwable $th) {
             //throw $th;
@@ -114,7 +108,17 @@ class SizeController extends Controller
             $size = Size::findOrFail($id);
             // Xoá kích thước
             $size->delete();
-
+            if (!$size) {
+                return response()->json([
+                    'message' => 'Không tìm thấy kích thước'
+                ], 500);
+            }
+            $usedInVariations = ProductVariation::where('size_id', $id)->exists();
+            if ($usedInVariations) {
+                return response()->json([
+                    'message' => 'Không thể xoá kích thước vì đang được sử dụng trong sản phẩm!',
+                ], 400);
+            }
             return response()->json(['message' => 'Đã xoá kích thước ']);
         } catch (\Throwable $th) {
             //throw $th;
