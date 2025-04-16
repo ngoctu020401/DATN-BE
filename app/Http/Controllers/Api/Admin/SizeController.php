@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ProductVariation;
 use App\Models\Size;
 use Illuminate\Http\Request;
 
@@ -61,6 +62,12 @@ class SizeController extends Controller
                     'message' => 'Không tìm thấy kích thước'
                 ], 500);
             }
+            $usedInVariations = ProductVariation::where('size_id', $id)->exists();
+            if ($usedInVariations) {
+                return response()->json([
+                    'message' => 'Không thể xoá kích thước vì đang được sử dụng trong sản phẩm!',
+                ], 400);
+            }
             return response()->json($size, 200);
         } catch (\Throwable $th) {
             //throw $th;
@@ -99,7 +106,7 @@ class SizeController extends Controller
         }
     }
 
-   //
+    //
     public function destroy(string $id)
     {
         try {

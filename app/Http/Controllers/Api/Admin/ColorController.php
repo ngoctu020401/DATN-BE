@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Color;
+use App\Models\ProductVariation;
 use Illuminate\Http\Request;
 
 class ColorController extends Controller
@@ -98,12 +99,24 @@ class ColorController extends Controller
         }
     }
 
-   //
+    //
     public function destroy(string $id)
     {
         try {
             //code...
             $color = Color::findOrFail($id);
+            if (!$color) {
+                return response()->json([
+                    'message' => 'Không tìm thấy màu sắc'
+                ], 500);
+            }
+            // Kiểm tra xem có biến thể nào đang dùng màu sắc này không, nếu có thì không cho xóa
+            $usedInVariations = ProductVariation::where('color_id', $id)->exists();
+            if ($usedInVariations) {
+                return response()->json([
+                    'message' => 'Không thể xoá màu sắc vì đang được sử dụng trong sản phẩm!',
+                ], 400);
+            }
             // Xoá màu sắc
             $color->delete();
 

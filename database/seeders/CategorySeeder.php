@@ -14,7 +14,7 @@ class CategorySeeder extends Seeder
     public function run(): void
     {
         //\
-        DB::table('libraries')->insert([
+        DB::table('categories')->insert([
             'name' => 'Chưa phân loại'
         ]);
     }
