@@ -79,16 +79,16 @@ class SizeController extends Controller
             $data = $request->validate([
                 'name' => 'required|string'
             ]);
-            $color = Color::find($id);
-            if (!$color) {
+            $size = Size::find($id);
+            if (!$size) {
                 return response()->json([
                     'message' => 'Không tìm thấy kích thước'
                 ], 500);
             }
-            $color->update($data);
+            $size->update($data);
             return response()->json([
                 'message' => 'Bạn đã sửa kích thước thành công',
-                'data' => $color
+                'data' => $size
             ], 200);
         } catch (\Throwable $th) {
             //throw $th;
@@ -104,9 +104,9 @@ class SizeController extends Controller
     {
         try {
             //code...
-            $category = Color::findOrFail($id);
+            $size = Size::findOrFail($id);
             // Xoá kích thước
-            $category->delete();
+            $size->delete();
 
             return response()->json(['message' => 'Đã xoá kích thước ']);
         } catch (\Throwable $th) {

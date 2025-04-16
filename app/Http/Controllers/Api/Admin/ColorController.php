@@ -103,9 +103,9 @@ class ColorController extends Controller
     {
         try {
             //code...
-            $category = Color::findOrFail($id);
+            $color = Color::findOrFail($id);
             // Xoá màu sắc
-            $category->delete();
+            $color->delete();
 
             return response()->json(['message' => 'Đã xoá màu sắc ']);
         } catch (\Throwable $th) {
