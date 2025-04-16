@@ -26,7 +26,7 @@ class SizeController extends Controller
         }
     }
 
-    // Chức năng thêm màu sắc
+    // Chức năng thêm kích thước
     public function store(Request $request)
     {
         //
@@ -35,10 +35,10 @@ class SizeController extends Controller
             $data = $request->validate([
                 'name' => 'required|string'
             ]);
-            $color = Color::create($data);
+            $size = Size::create($data);
             return response()->json([
-                'message' => 'Bạn đã thêm màu sắc thành công',
-                'data' => $color
+                'message' => 'Bạn đã thêm kích thước thành công',
+                'data' => $size
             ], 200);
         } catch (\Throwable $th) {
             //throw $th;
@@ -58,7 +58,7 @@ class SizeController extends Controller
             $color = Color::find($id);
             if (!$color) {
                 return response()->json([
-                    'message' => 'Không tìm thấy màu sắc'
+                    'message' => 'Không tìm thấy kích thước'
                 ], 500);
             }
             return response()->json($color, 200);
@@ -82,12 +82,12 @@ class SizeController extends Controller
             $color = Color::find($id);
             if (!$color) {
                 return response()->json([
-                    'message' => 'Không tìm thấy màu sắc'
+                    'message' => 'Không tìm thấy kích thước'
                 ], 500);
             }
             $color->update($data);
             return response()->json([
-                'message' => 'Bạn đã sửa màu sắc thành công',
+                'message' => 'Bạn đã sửa kích thước thành công',
                 'data' => $color
             ], 200);
         } catch (\Throwable $th) {
@@ -105,10 +105,10 @@ class SizeController extends Controller
         try {
             //code...
             $category = Color::findOrFail($id);
-            // Xoá màu sắc
+            // Xoá kích thước
             $category->delete();
 
-            return response()->json(['message' => 'Đã xoá màu sắc ']);
+            return response()->json(['message' => 'Đã xoá kích thước ']);
         } catch (\Throwable $th) {
             //throw $th;
             return response()->json([
