@@ -54,13 +54,13 @@ class ColorController extends Controller
         //
         try {
             //code...
-            $category = Category::find($id);
-            if (!$category) {
+            $color = Color::find($id);
+            if (!$color) {
                 return response()->json([
-                    'message' => 'Không tìm thấy danh mục'
+                    'message' => 'Không tìm thấy màu sắc'
                 ], 500);
             }
-            return response()->json($category, 200);
+            return response()->json($color, 200);
         } catch (\Throwable $th) {
             //throw $th;
             return response()->json([
@@ -78,16 +78,16 @@ class ColorController extends Controller
             $data = $request->validate([
                 'name' => 'required|string'
             ]);
-            $category = Category::find($id);
-            if (!$category) {
+            $color = Color::find($id);
+            if (!$color) {
                 return response()->json([
-                    'message' => 'Không tìm thấy danh mục'
+                    'message' => 'Không tìm thấy màu sắc'
                 ], 500);
             }
-            $category->update($data);
+            $color->update($data);
             return response()->json([
-                'message' => 'Bạn đã thêm danh mục thành công',
-                'data' => $category
+                'message' => 'Bạn đã sửa màu sắc thành công',
+                'data' => $color
             ], 200);
         } catch (\Throwable $th) {
             //throw $th;
@@ -107,16 +107,16 @@ class ColorController extends Controller
 
             // Nếu đang cố xoá chính "Chưa phân loại" thì không cho
             if ($category->id == 1) {
-                return response()->json(['message' => 'Không thể xoá danh mục mặc định'], 400);
+                return response()->json(['message' => 'Không thể xoá màu sắc mặc định'], 400);
             }
 
-            // Cập nhật tất cả sản phẩm về danh mục mặc định
+            // Cập nhật tất cả sản phẩm về màu sắc mặc định
             $category->products()->update(['category_id' => 1]);
 
-            // Xoá danh mục
+            // Xoá màu sắc
             $category->delete();
 
-            return response()->json(['message' => 'Đã xoá danh mục và chuyển sản phẩm danh mục mặc định']);
+            return response()->json(['message' => 'Đã xoá màu sắc và chuyển sản phẩm màu sắc mặc định']);
         } catch (\Throwable $th) {
             //throw $th;
             return response()->json([
