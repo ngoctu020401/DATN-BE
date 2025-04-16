@@ -36,7 +36,7 @@ class UserController extends Controller
             $data = $request->validate([
                 'name' => 'required|string|max:255',
                 'email' => 'required|email|unique:users,email',
-                'password' => 'required|string|min:6|confirmed',
+                'password' => 'required|min:8|confirmed',
                 'phone' => 'nullable|string|max:20',
                 'address' => 'nullable|string',
                 'avatar' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
@@ -91,7 +91,7 @@ class UserController extends Controller
 
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
-            'password' => 'nullable|string|min:6|confirmed',
+            'password' => 'nullable|min:8|confirmed',
             'phone' => 'nullable|string|max:20',
             'address' => 'nullable|string',
             'avatar' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
