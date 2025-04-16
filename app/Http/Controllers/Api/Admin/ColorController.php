@@ -103,20 +103,11 @@ class ColorController extends Controller
     {
         try {
             //code...
-            $category = Category::findOrFail($id);
-
-            // Nếu đang cố xoá chính "Chưa phân loại" thì không cho
-            if ($category->id == 1) {
-                return response()->json(['message' => 'Không thể xoá màu sắc mặc định'], 400);
-            }
-
-            // Cập nhật tất cả sản phẩm về màu sắc mặc định
-            $category->products()->update(['category_id' => 1]);
-
+            $category = Color::findOrFail($id);
             // Xoá màu sắc
             $category->delete();
 
-            return response()->json(['message' => 'Đã xoá màu sắc và chuyển sản phẩm màu sắc mặc định']);
+            return response()->json(['message' => 'Đã xoá màu sắc ']);
         } catch (\Throwable $th) {
             //throw $th;
             return response()->json([
