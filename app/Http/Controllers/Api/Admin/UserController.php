@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
@@ -44,7 +45,8 @@ class UserController extends Controller
 
             // Handle avatar upload
             if ($request->hasFile('avatar')) {
-                $avatarPath = $request->file('avatar')->store('uploads', 'public');
+                $filename = time() . '_' . Str::random(10) . '.' . $request->file('avatar')->getClientOriginalExtension();
+                $avatarPath = $request->file('avatar')->storeAs('avatars', $filename, 'public');
                 $validated['avatar'] = $avatarPath;
             }
 
@@ -63,12 +65,71 @@ class UserController extends Controller
         }
     }
     //
+    public function show($id)
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json(['message' => 'Không tìm thấy người dùng'], 404);
+        }
+
+        return response()->json($user);
+    }
+    //
+    public function update(Request $request, $id)
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json(['message' => 'Không tìm thấy người dùng'], 404);
+        }
+
+        // Không cho sửa email hoặc user có role admin
+        if ($user->role === 'admin') {
+            return response()->json(['message' => 'Không thể chỉnh sửa tài khoản admin'], 403);
+        }
+
+        $validated = $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'password' => 'nullable|string|min:6|confirmed',
+            'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|string',
+            'avatar' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'role' => 'nullable|string',
+        ]);
+
+        if ($request->hasFile('avatar')) {
+            // Xóa ảnh cũ nếu có
+            if ($user->avatar) {
+                Storage::disk('public')->delete($user->avatar);
+            }
+            $filename = time() . '_' . Str::random(10) . '.' . $request->file('avatar')->getClientOriginalExtension();
+            $avatarPath = $request->file('avatar')->storeAs('avatars', $filename, 'public');
+            $validated['avatar'] = $avatarPath;
+        }
+
+        if (!empty($validated['password'])) {
+            $validated['password'] = Hash::make($validated['password']);
+        } else {
+            unset($validated['password']);
+        }
+
+        $user->update($validated);
+
+        return response()->json($user);
+    }
+    //
     public function destroy($id)
     {
         $user = User::find($id);
 
         if (!$user) {
             return response()->json(['message' => 'Không tìm thấy người dùng'], 404);
+        }
+
+        // Không cho xoá admin
+        if ($user->role === 'admin') {
+            return response()->json(['message' => 'Không thể xoá tài khoản admin'], 403);
         }
 
         // Xóa ảnh nếu có
