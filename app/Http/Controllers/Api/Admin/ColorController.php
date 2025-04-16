@@ -25,7 +25,7 @@ class ColorController extends Controller
         }
     }
 
-    // Chức năng thêm danh mục
+    // Chức năng thêm màu sắc
     public function store(Request $request)
     {
         //
@@ -34,10 +34,10 @@ class ColorController extends Controller
             $data = $request->validate([
                 'name' => 'required|string'
             ]);
-            $category = Category::create($data);
+            $color = Color::create($data);
             return response()->json([
-                'message' => 'Bạn đã thêm danh mục thành công',
-                'data' => $category
+                'message' => 'Bạn đã thêm màu sắc thành công',
+                'data' => $color
             ], 200);
         } catch (\Throwable $th) {
             //throw $th;
