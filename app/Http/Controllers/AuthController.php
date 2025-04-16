@@ -40,4 +40,16 @@ class AuthController extends Controller
             'user' => $user,
         ]);
     }
+
+    public function logout(Request $request)
+    {
+        $user = $request->user(); // Lấy user gửi lên từ token trong header
+        //Kiểm tra xem user có tồn tại không
+        if ($user) {
+            $user->currentAccessToken()->delete();  //Nếu có thì xóa token
+            return response()->json(['message' => 'Đăng xuất thành công!'], 200);
+        }
+        //Nếu không trả về lỗi
+        return response()->json(['message' => 'Không thể đăng xuất, vui lòng thử lại!'], 400);
+    }
 }
