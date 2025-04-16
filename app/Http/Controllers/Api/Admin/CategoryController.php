@@ -47,4 +47,26 @@ class CategoryController extends Controller
             ], 500);
         }
     }
+    //Show
+
+    public function show(string $id)
+    {
+        //
+        try {
+            //code...
+            $category = Category::find($id);
+            if (!$category) {
+                return response()->json([
+                    'message' => 'Không tìm thấy danh mục'
+                ], 500);
+            }
+            return response()->json($category, 200);
+        } catch (\Throwable $th) {
+            //throw $th;
+            return response()->json([
+                'message' => 'Lỗi',
+                'errors' => $th->getMessage()
+            ], 500);
+        }
+    }
 }
