@@ -33,7 +33,7 @@ class UserController extends Controller
     {
         try {
             DB::beginTransaction();
-            $data = $request->validate([
+            $validated = $request->validate([
                 'name' => 'required|string|max:255',
                 'email' => 'required|email|unique:users,email',
                 'password' => 'required|min:8|confirmed',
