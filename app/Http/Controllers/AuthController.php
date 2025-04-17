@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -51,5 +53,41 @@ class AuthController extends Controller
         }
         //Nếu không trả về lỗi
         return response()->json(['message' => 'Không thể đăng xuất, vui lòng thử lại!'], 400);
+    }
+
+    //
+    public function signup(Request $request)
+    {
+        try {
+            DB::beginTransaction();
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'email' => 'required|email|unique:users,email',
+                'password' => 'required|min:8|confirmed',
+                'phone' => 'nullable|string|max:20',
+                'address' => 'nullable|string',
+                'avatar' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            ]);
+
+            // Handle avatar upload
+            if ($request->hasFile('avatar')) {
+                $filename = time() . '_' . Str::random(10) . '.' . $request->file('avatar')->getClientOriginalExtension();
+                $avatarPath = $request->file('avatar')->storeAs('avatars', $filename, 'public');
+                $validated['avatar'] = $avatarPath;
+            }
+
+            $validated['password'] = Hash::make($validated['password']);
+            $validated['role'] = 'user';
+            $user = User::create($validated);
+            DB::commit();
+            return response()->json($user, 201);
+        } catch (\Throwable $th) {
+            //throw $th;
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Lỗi',
+                'errors' => $th->getMessage()
+            ], 500);
+        }
     }
 }

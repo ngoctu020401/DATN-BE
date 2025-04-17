@@ -20,10 +20,11 @@ use Illuminate\Support\Facades\Route;
 */
 // Chức năng không cần đăng nhập
 Route::post('/login', [AuthController::class, 'login'])->name('login');
-Route::middleware('auth:sanctum')->group(function () {
+Route::post('/signup', [AuthController::class, 'signup']);
+
     //Chức năng cần đăng nhập
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::prefix('admin')->middleware('admin')->group(function () { // Chức năng cần là tài khoản admin
+    Route::prefix('admin')->group(function () { // Chức năng cần là tài khoản admin
         // Kích thước (Size)
         Route::get('sizes', [SizeController::class, 'index']);
         Route::post('sizes', [SizeController::class, 'store']);
@@ -52,4 +53,4 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('users/{id}', [UserController::class, 'update']);  // Cập nhật người dùng
         Route::delete('users/{id}', [UserController::class, 'destroy']); // Xoá người dùng
     });
-});
+
