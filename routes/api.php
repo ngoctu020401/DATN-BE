@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\CategoryController;
 use App\Http\Controllers\Api\Admin\ColorController;
+use App\Http\Controllers\Api\Admin\ProductController;
 use App\Http\Controllers\Api\Admin\SizeController;
 use App\Http\Controllers\Api\Admin\UserController;
 use App\Http\Controllers\AuthController;
@@ -52,5 +53,15 @@ Route::post('/signup', [AuthController::class, 'signup']);
         Route::get('users/{id}', [UserController::class, 'show']);    // Xem chi tiết người dùng
         Route::put('users/{id}', [UserController::class, 'update']);  // Cập nhật người dùng
         Route::delete('users/{id}', [UserController::class, 'destroy']); // Xoá người dùng
+        Route::prefix('products')->group(function () {
+            Route::get('/', [ProductController::class, 'index']); // Danh sách sản phẩm
+            Route::post('/', [ProductController::class, 'store']); // Thêm sản phẩm
+            Route::put('/{id}', [ProductController::class, 'update']); // Cập nhật sản phẩm
+        
+            Route::post('/variation', [ProductController::class, 'addVariation']); // Thêm biến thể
+            Route::delete('/variation/{id}', [ProductController::class, 'deleteVariation']); // Xoá biến thể
+        
+            Route::delete('/image/{id}', [ProductController::class, 'deleteImage']); // Xoá ảnh phụ
+        });
     });
 

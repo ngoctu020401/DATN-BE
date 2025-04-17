@@ -111,8 +111,6 @@ class ProductController extends Controller
                 'main_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
                 'category_id' => 'nullable|exists:categories,id',
                 'new_images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048', // ảnh mới nếu có
-                'delete_image_ids' => 'nullable|array', // mảng ID ảnh cần xoá
-                'delete_image_ids.*' => 'integer|exists:product_images,id',
                 'variations' => 'nullable|array',
                 'variations.*.id' => 'required|exists:product_variations,id',
                 'variations.*.price' => 'nullable|numeric|min:0',
@@ -138,20 +136,6 @@ class ProductController extends Controller
                 'description' => $data['description'] ?? null,
                 'category_id' => $data['category_id'] ?? $product->category_id,
             ]);
-
-            //  Xoá các ảnh phụ nếu có chỉ định
-            if (!empty($data['delete_image_ids'])) {
-                $imagesToDelete = ProductImage::whereIn('id', $data['delete_image_ids'])
-                    ->where('product_id', $product->id)
-                    ->get();
-
-                foreach ($imagesToDelete as $img) {
-                    if ($img->url && Storage::disk('public')->exists($img->url)) {
-                        Storage::disk('public')->delete($img->url);
-                    }
-                    $img->delete();
-                }
-            }
             if ($request->has('variations')) {
                 foreach ($request->input('variations') as $variationData) {
                     if (isset($variationData['id'])) {
@@ -235,4 +219,27 @@ class ProductController extends Controller
             ], 500);
         }
     }
+    //
+    public function deleteImage($id)
+{
+    try {
+        $image = ProductImage::findOrFail($id);
+
+        if ($image->url && Storage::disk('public')->exists($image->url)) {
+            Storage::disk('public')->delete($image->url);
+        }
+
+        $image->delete();
+
+        return response()->json([
+            'message' => 'Xoá ảnh thành công'
+        ]);
+    } catch (\Throwable $th) {
+        return response()->json([
+            'message' => 'Xoá ảnh thất bại',
+            'error' => $th->getMessage()
+        ], 500);
+    }
+}
+
 }
