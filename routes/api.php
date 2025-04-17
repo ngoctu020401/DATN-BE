@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Admin\CategoryController;
 use App\Http\Controllers\Api\Admin\ColorController;
 use App\Http\Controllers\Api\Admin\SizeController;
+use App\Http\Controllers\Api\Admin\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -41,4 +42,11 @@ Route::prefix('admin')->group(function () {
     Route::get('categories/{id}', [CategoryController::class, 'show']);
     Route::put('categories/{id}', [CategoryController::class, 'update']);
     Route::delete('categories/{id}', [CategoryController::class, 'destroy']);
+
+    // Người dùng 
+    Route::get('users', [UserController::class, 'index']);        // Danh sách người dùng (có phân trang)
+    Route::post('users', [UserController::class, 'store']);       // Tạo người dùng mới
+    Route::get('users/{id}', [UserController::class, 'show']);    // Xem chi tiết người dùng
+    Route::put('users/{id}', [UserController::class, 'update']);  // Cập nhật người dùng
+    Route::delete('users/{id}', [UserController::class, 'destroy']); // Xoá người dùng
 });
