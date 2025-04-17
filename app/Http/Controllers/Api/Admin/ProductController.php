@@ -11,12 +11,6 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 
-// Lưu ảnh chính với tên duy nhất
-$mainImage = $request->file('main_image');
-$mainImageName = 'main_' . time() . '_' . Str::uuid() . '.' . $mainImage->getClientOriginalExtension();
-$mainImagePath = $mainImage->storeAs('uploads', $mainImageName, 'public');
-
-
 class ProductController extends Controller
 {
     //
