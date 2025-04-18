@@ -54,16 +54,22 @@ Route::prefix('admin')->group(function () { // Chức năng cần là tài kho�
     Route::put('users/{id}', [UserController::class, 'update']);  // Cập nhật người dùng
     Route::delete('users/{id}', [UserController::class, 'destroy']); // Xoá người dùng
     Route::prefix('products')->group(function () {
-        Route::get('/', [ProductController::class, 'index']);
-        Route::get('/{id}', [ProductController::class, 'show']); // Chi tiết sản phẩm
-        Route::get('/{id}/variants', [ProductController::class, 'getVariants']); // Danh sách biến thể của sản phẩm
-        Route::get('/{id}/images', [ProductController::class, 'getImages']); // Danh sách ảnh phụ của sản phẩm // Danh sách sản phẩm
-        Route::post('/', [ProductController::class, 'store']); // Thêm sản phẩm
-        Route::put('/{id}', [ProductController::class, 'update']); // Cập nhật sản phẩm
+        // Sản phẩm chính
+        Route::get('/', [ProductController::class, 'index']);             // Danh sách sản phẩm
+        Route::get('/{id}', [ProductController::class, 'show']);          // Chi tiết sản phẩm
+        Route::post('/', [ProductController::class, 'store']);            // Thêm sản phẩm
+        Route::put('/{id}', [ProductController::class, 'update']);        // Cập nhật sản phẩm
+        Route::delete('/{id}', [ProductController::class, 'destroy']);    // Xoá sản phẩm
 
-        Route::post('/variation', [ProductController::class, 'addVariation']); // Thêm biến thể
+        // Ảnh sản phẩm
+        Route::get('/{id}/images', [ProductController::class, 'getImages']);            // Danh sách ảnh phụ
+        Route::post('/{id}/images', [ProductController::class, 'addImages']);           // Thêm ảnh phụ
+        Route::delete('/image/{id}', [ProductController::class, 'deleteImage']);        // Xoá ảnh phụ
+
+        // Biến thể sản phẩm
+        Route::get('/{id}/variants', [ProductController::class, 'getVariants']);        // Danh sách biến thể
+        Route::post('/variation', [ProductController::class, 'addVariation']);          // Thêm biến thể
+        Route::put('/variation/{id}', [ProductController::class, 'updateVariation']);   // Sửa biến thể
         Route::delete('/variation/{id}', [ProductController::class, 'deleteVariation']); // Xoá biến thể
-
-        Route::delete('/image/{id}', [ProductController::class, 'deleteImage']); // Xoá ảnh phụ
     });
 });

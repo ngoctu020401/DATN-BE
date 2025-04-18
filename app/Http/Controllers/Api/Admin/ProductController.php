@@ -192,6 +192,65 @@ class ProductController extends Controller
         }
     }
     //
+
+    public function updateVariation(Request $request, $id)
+    {
+        $data = $request->validate([
+            'price' => 'required|numeric|min:0',
+            'sale_price' => 'nullable|numeric|min:0',
+        ]);
+
+        try {
+            $variation = ProductVariation::findOrFail($id);
+
+            $variation->update([
+                'price'      => $data['price'],
+                'sale_price' => $data['sale_price'] ?? $variation->sale_price,
+            ]);
+
+            return response()->json([
+                'message' => 'Cập nhật biến thể thành công',
+                'variation' => $variation,
+            ], 200);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'message' => 'Cập nhật biến thể thất bại',
+                'error' => $th->getMessage(),
+            ], 500);
+        }
+    }
+
+    //
+    public function addImages(Request $request, $id)
+    {
+        $request->validate([
+            'images.*' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048'
+        ]);
+
+        $product = Product::findOrFail($id);
+
+        $uploaded = [];
+
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $imageName = 'gallery_' . time() . '_' . Str::uuid() . '.' . $image->getClientOriginalExtension();
+                $imagePath = $image->storeAs('uploads', $imageName, 'public');
+
+                $productImage = ProductImage::create([
+                    'product_id' => $product->id,
+                    'url' => $imagePath,
+                ]);
+
+                $uploaded[] = $productImage;
+            }
+        }
+
+        return response()->json([
+            'message' => 'Thêm ảnh phụ thành công',
+            'images' => $uploaded
+        ], 201);
+    }
+
     public function addVariation(Request $request)
     {
         $data = $request->validate([
@@ -264,5 +323,16 @@ class ProductController extends Controller
                 'error' => $th->getMessage()
             ], 500);
         }
+    }
+
+    //
+    public function destroy($id)
+    {
+        $product = Product::findOrFail($id);
+        $product->delete(); // soft delete 
+
+        return response()->json([
+            'message' => 'Xoá sản phẩm thành công'
+        ]);
     }
 }
