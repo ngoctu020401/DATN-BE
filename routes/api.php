@@ -64,12 +64,12 @@ Route::prefix('admin')->group(function () { // Chức năng cần là tài kho�
         // Ảnh sản phẩm
         Route::get('/{id}/images', [ProductController::class, 'getImages']);            // Danh sách ảnh phụ
         Route::post('/{id}/images', [ProductController::class, 'addImages']);           // Thêm ảnh phụ
-        Route::post('/image/{id}', [ProductController::class, 'deleteImage']);        // Xoá ảnh phụ
+        Route::delete('/image/{id}', [ProductController::class, 'deleteImage']);        // Xoá ảnh phụ
 
         // Biến thể sản phẩm
         Route::get('/{id}/variants', [ProductController::class, 'getVariants']);        // Danh sách biến thể
         Route::post('/variation', [ProductController::class, 'addVariation']);          // Thêm biến thể
         Route::put('/variation/{id}', [ProductController::class, 'updateVariation']);   // Sửa biến thể
-        Route::post('/variation/{id}', [ProductController::class, 'deleteVariation']); // Xoá biến thể
+        Route::delete('/variation/{id}', [ProductController::class, 'deleteVariation']); // Xoá biến thể
     });
 });
