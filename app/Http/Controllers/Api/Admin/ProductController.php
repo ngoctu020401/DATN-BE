@@ -124,11 +124,7 @@ class ProductController extends Controller
                 'description' => 'nullable|string',
                 'main_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
                 'category_id' => 'nullable|exists:categories,id',
-                'new_images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048', // ảnh mới nếu có
-                'variations' => 'nullable|array',
-                'variations.*.id' => 'required|exists:product_variations,id',
-                'variations.*.price' => 'nullable|numeric|min:0',
-                'variations.*.sale_price' => 'nullable|numeric|min:0',
+
 
             ]);
 
@@ -150,35 +146,6 @@ class ProductController extends Controller
                 'description' => $data['description'] ?? null,
                 'category_id' => $data['category_id'] ?? $product->category_id,
             ]);
-            if ($request->has('variations')) {
-                foreach ($request->input('variations') as $variationData) {
-                    if (isset($variationData['id'])) {
-                        $variation = ProductVariation::where('id', $variationData['id'])
-                            ->where('product_id', $product->id)
-                            ->first();
-
-                        if ($variation) {
-                            $variation->update([
-                                'price'      => $variationData['price'] ?? $variation->price,
-                                'sale_price' => $variationData['sale_price'] ?? $variation->sale_price,
-                            ]);
-                        }
-                    }
-                }
-            }
-
-            //  Upload thêm ảnh phụ nếu có
-            if ($request->hasFile('new_images')) {
-                foreach ($request->file('new_images') as $image) {
-                    $imageName = 'gallery_' . time() . '_' . Str::uuid() . '.' . $image->getClientOriginalExtension();
-                    $imagePath = $image->storeAs('uploads', $imageName, 'public');
-
-                    ProductImage::create([
-                        'product_id' => $product->id,
-                        'url' => $imagePath,
-                    ]);
-                }
-            }
 
             return response()->json([
                 'message' => 'Cập nhật sản phẩm thành công',
