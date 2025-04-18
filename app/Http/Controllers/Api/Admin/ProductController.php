@@ -19,7 +19,7 @@ class ProductController extends Controller
         //
         try {
             //code...
-            $produtcs = Product::paginate(10);
+            $produtcs = Product::with('category')->paginate(10);
             return response()->json($produtcs, 200);
         } catch (\Throwable $th) {
             //throw $th;
@@ -92,7 +92,18 @@ class ProductController extends Controller
         }
     }
     //
-
+    public function show($id){
+        $product = Product::find($id);
+        if(!$product){
+            return response()->json([
+                'message' => 'Không tìm thấy màu sắc'
+            ], 500);
+        }
+        return response()->json($product,200);
+    }
+    public function getVariants(){
+        $variations = ProductVariation::where('product_id',$id)->get();
+    }
     //
     public function update(Request $request, $id)
     {
@@ -215,25 +226,24 @@ class ProductController extends Controller
     }
     //
     public function deleteImage($id)
-{
-    try {
-        $image = ProductImage::findOrFail($id);
+    {
+        try {
+            $image = ProductImage::findOrFail($id);
 
-        if ($image->url && Storage::disk('public')->exists($image->url)) {
-            Storage::disk('public')->delete($image->url);
+            if ($image->url && Storage::disk('public')->exists($image->url)) {
+                Storage::disk('public')->delete($image->url);
+            }
+
+            $image->delete();
+
+            return response()->json([
+                'message' => 'Xoá ảnh thành công'
+            ]);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'message' => 'Xoá ảnh thất bại',
+                'error' => $th->getMessage()
+            ], 500);
         }
-
-        $image->delete();
-
-        return response()->json([
-            'message' => 'Xoá ảnh thành công'
-        ]);
-    } catch (\Throwable $th) {
-        return response()->json([
-            'message' => 'Xoá ảnh thất bại',
-            'error' => $th->getMessage()
-        ], 500);
     }
-}
-
 }
