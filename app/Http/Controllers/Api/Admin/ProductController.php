@@ -108,6 +108,11 @@ class ProductController extends Controller
         $variations = ProductVariation::where('product_id', $id)->get();
         return response()->json($variations, 200);
     }
+    public function getImages($id)
+    {
+        $variations = ProductImage::where('product_id', $id)->get();
+        return response()->json($variations, 200);
+    }
     //
     public function update(Request $request, $id)
     {
