@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Admin\ColorController;
 use App\Http\Controllers\Api\Admin\ProductController;
 use App\Http\Controllers\Api\Admin\SizeController;
 use App\Http\Controllers\Api\Admin\UserController;
+use App\Http\Controllers\Api\User\HomeController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -22,7 +23,20 @@ use Illuminate\Support\Facades\Route;
 // Chức năng không cần đăng nhập
 Route::post('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/signup', [AuthController::class, 'signup']);
+//  Sản phẩm mới
+Route::get('/new-products', [HomeController::class, 'newProdutcs']);
 
+// Danh mục
+Route::get('/categories', [HomeController::class, 'listCategory']);
+
+// Danh sách tất cả sản phẩm (có lọc, sắp xếp)
+Route::get('/products', [HomeController::class, 'allProduct']);
+
+// Tìm kiếm sản phẩm
+Route::get('/products/search', [HomeController::class, 'search']);
+
+// Sản phẩm theo danh mục + bộ lọc
+Route::get('/categories/{id}/products', [HomeController::class, 'productByCategory']);
 //Chức năng cần đăng nhập
 Route::post('/logout', [AuthController::class, 'logout']);
 Route::prefix('admin')->group(function () { // Chức năng cần là tài khoản admin
