@@ -105,12 +105,12 @@ class ProductController extends Controller
     }
     public function getVariants($id)
     {
-        $variations = ProductVariation::where('product_id', $id)->get();
+        $variations = ProductVariation::where('product_id', $id)->with(['color', 'size'])->paginate(10);
         return response()->json($variations, 200);
     }
     public function getImages($id)
     {
-        $variations = ProductImage::where('product_id', $id)->get();
+        $variations = ProductImage::where('product_id', $id)->paginate(10);
         return response()->json($variations, 200);
     }
     //
