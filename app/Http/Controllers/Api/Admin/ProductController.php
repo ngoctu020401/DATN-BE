@@ -33,6 +33,7 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         try {
+
             $data = $request->validate([
                 'name' => 'required|string|max:255',
                 'description' => 'nullable|string',
@@ -92,17 +93,20 @@ class ProductController extends Controller
         }
     }
     //
-    public function show($id){
+    public function show($id)
+    {
         $product = Product::find($id);
-        if(!$product){
+        if (!$product) {
             return response()->json([
                 'message' => 'Không tìm thấy màu sắc'
             ], 500);
         }
-        return response()->json($product,200);
+        return response()->json($product, 200);
     }
-    public function getVariants(){
-        $variations = ProductVariation::where('product_id',$id)->get();
+    public function getVariants($id)
+    {
+        $variations = ProductVariation::where('product_id', $id)->get();
+        return response()->json($variations, 200);
     }
     //
     public function update(Request $request, $id)
@@ -192,6 +196,16 @@ class ProductController extends Controller
             'price' => 'required|numeric|min:0',
             'sale_price' => 'nullable|numeric|min:0',
         ]);
+        $exists = ProductVariation::where('product_id', $data['product_id'])
+            ->where('color_id', $data['color_id'])
+            ->where('size_id', $data['size_id'])
+            ->exists();
+
+        if ($exists) {
+            return response()->json([
+                'message' => 'Biến thể với màu và size này đã tồn tại cho sản phẩm.',
+            ], 422);
+        }
 
         try {
             $variation = ProductVariation::create($data);
