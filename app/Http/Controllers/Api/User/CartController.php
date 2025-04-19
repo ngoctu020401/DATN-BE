@@ -30,7 +30,7 @@ class CartController extends Controller
             'quantity' => 'required|integer|min:1',
         ]);
 
-        $user = Auth::guard('sanctum')->user();
+        $user = Auth::user();
         $cart = $user->cart;
 
         $variationId = (int) $request->input('variation_id');
@@ -88,5 +88,35 @@ class CartController extends Controller
         $item->save();
 
         return response()->json(['message' => 'Cập nhật thành công', 'item' => $item]);
+    }
+
+    public function remove(Request $request)
+    {
+        $request->validate([
+            'cart_item_id' => 'required|exists:cart_items,id'
+        ]);
+
+        CartItem::findOrFail($request->cart_item_id)->delete();
+        return response()->json(['message' => 'Đã xóa sản phẩm khỏi giỏ hàng']);
+    }
+
+
+
+    public function checkoutData(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:cart_items,id'
+        ]);
+
+        $user = Auth::user();
+        $cart = $user->cart;
+        $ids = $request->input('ids');
+        $items = CartItem::with('productVariation.product', 'productVariation.color', 'productVariation.size')
+            ->where('cart_id', $cart->id)
+            ->whereIn('id', $ids)
+            ->get();
+
+        return response()->json(['items' => $items]);
     }
 }
