@@ -169,7 +169,7 @@ class OrderClientController extends Controller
     {
         //Khai báo biến
         $vnp_TmnCode = 'OFRCXR48';
-        $vnp_ReturnUrl = '';
+        $vnp_ReturnUrl = 'http://localhost:5173/thanks';
         $vnp_Url = 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
         $vnp_HashSecret = 'XBB6GOAPO5O5ARJ5FF2JU658OGNMIQWZ'; 
         //
