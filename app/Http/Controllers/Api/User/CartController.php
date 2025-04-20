@@ -14,7 +14,7 @@ class CartController extends Controller
     //
     public function index()
     {
-        $user = Auth::user(); // Lấy ra người dùng được gửi lên = token
+        $user = auth('sanctum')->user(); // Lấy ra người dùng được gửi lên = token
         $cart = $user->cart ?? null; // Lấy giỏ hàng của người dùng đó
         if (!$cart) {
             return response()->json([
@@ -36,7 +36,7 @@ class CartController extends Controller
             'quantity' => 'required|integer|min:1',
         ]);
 
-        $user = Auth::user();
+        $user = auth('sanctum')->user();
         $cart = $user->cart ?? null;
         if(!$cart){
             $cart = Cart::create([
@@ -119,7 +119,7 @@ class CartController extends Controller
             'ids.*' => 'integer|exists:cart_items,id'
         ]);
 
-        $user = Auth::user();
+        $user = auth('sanctum')->user();
         $cart = $user->cart;
         $ids = $request->input('ids');
         $items = CartItem::with('productVariation.product', 'productVariation.color', 'productVariation.size')

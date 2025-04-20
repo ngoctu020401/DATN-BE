@@ -28,7 +28,7 @@ class OrderClientController extends Controller
             'note' => 'nullable|string'
         ]);
 
-        $user = Auth::user();
+        $user = auth('sanctum')->user();
         $cartItemIds = $request->cart_item_ids;
         $paymentMethod = $request->payment_method;
 
