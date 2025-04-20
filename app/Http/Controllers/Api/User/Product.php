@@ -10,7 +10,7 @@ class Product extends Controller
 {
     //
     public function productDetail($id){
-        $product = ModelsProduct::with(['variations','variations.color','variations.size'])->where('id',$id)->first();
+        $product = ModelsProduct::with(['variations','variations.color','variations.size','images'])->where('id',$id)->first();
         return response()->json($product,200);
     }
 }
