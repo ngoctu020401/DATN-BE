@@ -22,7 +22,7 @@ class CartController extends Controller
                 'message' => 'Giỏ hàng trống'
             ]);
         }
-        $items = CartItem::with('productVariation.product', 'productVariation.color', 'productVariation.size')
+        $items = CartItem::with('variation.product', 'variation.color', 'variation.size')
             ->where('cart_id', $cart->id)
             ->get(); // Lấy ra  các item có trong giỏ hàng
 
@@ -86,9 +86,9 @@ class CartController extends Controller
             'quantity' => 'required|integer|min:1',
         ]);
 
-        $item = CartItem::with('productVariation')->findOrFail($request->cart_item_id);
+        $item = CartItem::with('variation')->findOrFail($request->cart_item_id);
         // Kiểm tra xem số lượng muốn update có lớn hơn số lượng tồn kho không
-        if ($request->quantity > $item->productVariation->stock_quantity) {
+        if ($request->quantity > $item->variation->stock_quantity) {
             return response()->json([
                 'message' => 'Số lượng vượt quá tồn kho hiện tại.'
             ], 400);
@@ -122,7 +122,7 @@ class CartController extends Controller
         $user = auth('sanctum')->user();
         $cart = $user->cart;
         $ids = $request->input('ids');
-        $items = CartItem::with('productVariation.product', 'productVariation.color', 'productVariation.size')
+        $items = CartItem::with('variation.product', 'variation.color', 'variation.size')
             ->where('cart_id', $cart->id)
             ->whereIn('id', $ids)
             ->get();
