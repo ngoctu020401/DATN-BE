@@ -83,7 +83,7 @@ class OrderClientController extends Controller
             }
 
             if ($paymentMethod === 'vnpay') {
-                $paymentUrl = '123';
+                $paymentUrl = $this->createPaymentUrl($order,60);
                 $order->update(['payment_url' => $paymentUrl]);
             }
 
@@ -94,7 +94,7 @@ class OrderClientController extends Controller
 
             return response()->json([
                 'message' => 'Tạo đơn hàng thành công',
-                'order_code' => $order->code,
+                'order_code' => $order->order_code,
                 'payment_url' => $order->payment_url ?? null
             ], 201);
         } catch (\Throwable $th) {
