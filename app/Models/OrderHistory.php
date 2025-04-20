@@ -8,4 +8,14 @@ use Illuminate\Database\Eloquent\Model;
 class OrderHistory extends Model
 {
     use HasFactory;
+    protected $fillable = [
+        'order_id',
+        'status',
+        'note'
+    ];
+
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
+    }
 }
