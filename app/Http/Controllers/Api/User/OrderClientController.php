@@ -54,26 +54,29 @@ class OrderClientController extends Controller
         try {
             $order = Order::create([
                 'user_id' => $user->id,
-                'code' => 'ORD' . time(),
+                'order_code' => 'ORD' . time(),
                 'total_amount' => $totalAmount,
                 'final_amount' => $totalAmount, // có thể trừ giảm giá sau
                 'payment_method' => $paymentMethod,
-                'shipping_address' => $request->shipping_address,
-                'shipping_name' => $request->shipping_name,
-                'shipping_phone' => $request->shipping_phone,
-                'shipping_email' => $request->shipping_email,
+                'address' => $request->shipping_address,
+                'name' => $request->shipping_name,
+                'phone' => $request->shipping_phone,
+                'email' => $request->shipping_email,
                 'note' => $request->note,
                 'order_status_id' => 1,
                 'payment_status_id' => 1,
+                'shipping'=>30000
             ]);
 
             foreach ($cartItems as $item) {
                 OrderItem::create([
                     'order_id' => $order->id,
-                    'product_id' => $item->productVariation->product_id,
+                    'product_name' => $item->productVariation->product->name,
                     'variation_id' => $item->variation_id,
-                    'price' => $item->productVariation->price,
+                    'product_price' => $item->productVariation->price,
                     'quantity' => $item->quantity,
+                    'image'=> $item->productVariation->product->main_image,
+                    'variation' => $item->productVariation->getVariation()
                 ]);
 
                 $item->productVariation->decrement('stock_quantity', $item->quantity);
@@ -106,7 +109,7 @@ class OrderClientController extends Controller
     public function vnpayReturn(Request $request)
     {
 
-        $vnp_HashSecret = "9X1HLVJCZ6U4VRCTEAJBSRDGJDDANXPW";
+        $vnp_HashSecret = "XBB6GOAPO5O5ARJ5FF2JU658OGNMIQWZ";
         $vnp_SecureHash = $request['vnp_SecureHash'];
         $inputData = array();
         foreach ($_GET as $key => $value) {
@@ -197,4 +200,6 @@ class OrderClientController extends Controller
 
         return $vnp_Url . "?" . $query;
     }
+    //LỊch sử đơn hàng
+
 }

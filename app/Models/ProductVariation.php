@@ -26,4 +26,10 @@ class ProductVariation extends Model
     {
         return $this->belongsTo(Size::class);
     }
+    public function getVariation(){
+        return [
+            'Kích thước' => $this->size->name ?? null,
+            'Màu sắc' => $this->color->name ?? null
+        ];
+    }
 }
