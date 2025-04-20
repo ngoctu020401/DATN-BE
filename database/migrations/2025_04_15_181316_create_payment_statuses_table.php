@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('payment_statuses', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->json('next_status');
+            $table->json('next_status')->nullable();
             $table->timestamps();
         });
     }
