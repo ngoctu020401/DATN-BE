@@ -42,7 +42,7 @@ Route::get('/products/search', [HomeController::class, 'search']);
 Route::get('/categories/{id}/products', [HomeController::class, 'productByCategory']);
 
 // Chi tiết sản phẩm 
-Route::get('/products/{id}', [Product::class, 'productDetail']);
+Route::get('/product-detail/{id}', [Product::class, 'productDetail']);
 
 
 //Chức năng cần đăng nhập
