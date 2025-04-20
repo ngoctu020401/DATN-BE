@@ -175,6 +175,7 @@ class ProductController extends Controller
             $variation->update([
                 'price'      => $data['price'],
                 'sale_price' => $data['sale_price'] ?? $variation->sale_price,
+                'stock_quantity' => $data['stock_quantity'] ?? $variation->stock_quantity,
             ]);
 
             return response()->json([
