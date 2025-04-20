@@ -5,7 +5,10 @@ use App\Http\Controllers\Api\Admin\ColorController;
 use App\Http\Controllers\Api\Admin\ProductController;
 use App\Http\Controllers\Api\Admin\SizeController;
 use App\Http\Controllers\Api\Admin\UserController;
+use App\Http\Controllers\Api\User\CartController;
 use App\Http\Controllers\Api\User\HomeController;
+use App\Http\Controllers\Api\User\OrderClientController;
+use App\Http\Controllers\Api\User\Product;
 use App\Http\Controllers\AuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -37,7 +40,24 @@ Route::get('/products/search', [HomeController::class, 'search']);
 
 // Sản phẩm theo danh mục + bộ lọc
 Route::get('/categories/{id}/products', [HomeController::class, 'productByCategory']);
+
+// Chi tiết sản phẩm 
+Route::get('/products/{id}', [Product::class, 'productDetail']);
+
+
 //Chức năng cần đăng nhập
+Route::prefix('cart')->group(function () {
+    Route::get('/', [CartController::class, 'index']); // Lấy giỏ hàng
+    Route::post('/add', [CartController::class, 'add']); // Thêm sản phẩm vào giỏ
+    Route::put('/update', [CartController::class, 'update']); // Cập nhật số lượng
+    Route::delete('/remove', [CartController::class, 'remove']); // Xoá sản phẩm khỏi giỏ
+    Route::post('/checkout-data', [CartController::class, 'checkoutData']); // Lấy dữ liệu sản phẩm đã chọn để checkout
+});
+//
+Route::post('/checkout', [OrderClientController::class, 'store']);
+
+// VNPAY callback xử lý kết quả thanh toán
+Route::get('/vnpay/return', [OrderClientController::class, 'vnpayReturn']);
 Route::post('/logout', [AuthController::class, 'logout']);
 Route::prefix('admin')->group(function () { // Chức năng cần là tài khoản admin
     // Kích thước (Size)
