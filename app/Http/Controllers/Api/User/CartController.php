@@ -39,7 +39,7 @@ class CartController extends Controller
         $user = Auth::user();
         $cart = $user->cart ?? null;
         if(!$cart){
-            Cart::create([
+            $cart = Cart::create([
                 'user_id'=>$user->id
             ]);
         }
