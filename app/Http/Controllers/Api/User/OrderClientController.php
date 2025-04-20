@@ -7,6 +7,7 @@ use App\Models\CartItem;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\PaymentOnline;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -101,5 +102,99 @@ class OrderClientController extends Controller
             ], 500);
         }
     }
+    //Xử lí thanh toán
+    public function vnpayReturn(Request $request)
+    {
 
+        $vnp_HashSecret = "9X1HLVJCZ6U4VRCTEAJBSRDGJDDANXPW";
+        $vnp_SecureHash = $request['vnp_SecureHash'];
+        $inputData = array();
+        foreach ($_GET as $key => $value) {
+            if (substr($key, 0, 4) == "vnp_") {
+                $inputData[$key] = $value;
+            }
+        }
+
+        unset($inputData['vnp_SecureHash']);
+        ksort($inputData);
+        $i = 0;
+        $hashData = "";
+        foreach ($inputData as $key => $value) {
+            if ($i == 1) {
+                $hashData = $hashData . '&' . urlencode($key) . "=" . urlencode($value);
+            } else {
+                $hashData = $hashData . urlencode($key) . "=" . urlencode($value);
+                $i = 1;
+            }
+        }
+
+        $secureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
+
+        if ($secureHash === $vnp_SecureHash) {
+            if ($request['vnp_ResponseCode'] == '00') {
+                // Giao dịch thành công, cập nhật trạng thái đơn hàng
+                $order = Order::where('order_code', $request['vnp_TxnRef'])->first();
+                if ($order) {
+                    $order->update(['status_payment' => 2]);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Thanh toán thành công',
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Thanh toán thất bại',
+                ]);
+            }
+        }
+    }
+    //Thanh toán online
+    public function createPaymentUrl($order,$expireInMinutes)
+    {
+        //Khai báo biến
+        $vnp_TmnCode = 'OFRCXR48';
+        $vnp_ReturnUrl = '';
+        $vnp_Url = 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
+        $vnp_HashSecret = 'XBB6GOAPO5O5ARJ5FF2JU658OGNMIQWZ'; 
+        //
+        $vnp_TxnRef = $order->code;
+        $vnp_OrderInfo = "Thanh toán hóa đơn " . $order->order_code;
+        $vnp_OrderType = "100002";
+        $vnp_Amount = $order->final_amount  * 100;
+        $vnp_Locale = "VN";
+        $vnp_IpAddr = request()->ip();
+        $createDate = Carbon::now(); // thời điểm khởi tạo
+        $expireDate = $createDate->copy()->addMinutes($expireInMinutes);
+        $inputData = [
+            "vnp_Version" => "2.1.0",
+            "vnp_TmnCode" => $vnp_TmnCode,
+            "vnp_Amount" => $vnp_Amount,
+            "vnp_Command" => "pay",
+            "vnp_CreateDate" => date('YmdHis'),
+            "vnp_CurrCode" => "VND",
+            "vnp_IpAddr" => $vnp_IpAddr,
+            "vnp_Locale" => $vnp_Locale,
+            "vnp_OrderInfo" => $vnp_OrderInfo,
+            "vnp_OrderType" => 'other',
+            "vnp_ReturnUrl" => $vnp_ReturnUrl,
+            "vnp_TxnRef" => $vnp_TxnRef,
+            "vnp_CreateDate" => $createDate->format('YmdHis'),
+            "vnp_ExpireDate" => $expireDate->format('YmdHis'),
+        ];
+
+        ksort($inputData);
+        $query = "";
+        $hashdata = "";
+        foreach ($inputData as $key => $value) {
+            $hashdata .= ($hashdata ? '&' : '') . urlencode($key) . "=" . urlencode($value);
+            $query .= urlencode($key) . "=" . urlencode($value) . '&';
+        }
+
+        $vnpSecureHash = hash_hmac('sha512', $hashdata, $vnp_HashSecret);
+        $query .= 'vnp_SecureHash=' . $vnpSecureHash;
+
+        return $vnp_Url . "?" . $query;
+    }
 }
