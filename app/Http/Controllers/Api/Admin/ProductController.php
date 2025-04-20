@@ -45,6 +45,7 @@ class ProductController extends Controller
                 'variations.*.size_id' => 'required|exists:sizes,id',
                 'variations.*.price' => 'required|numeric|min:0',
                 'variations.*.sale_price' => 'nullable|numeric|min:0',
+                'variations.*.stock_quantity' => 'nullable|numeric|min:0',
             ]);
 
             // Lưu ảnh chính với tên duy nhất
@@ -165,6 +166,7 @@ class ProductController extends Controller
         $data = $request->validate([
             'price' => 'required|numeric|min:0',
             'sale_price' => 'nullable|numeric|min:0',
+            'variations.*.stock_quantity' => 'nullable|numeric|min:0',
         ]);
 
         try {
@@ -226,6 +228,7 @@ class ProductController extends Controller
             'size_id' => 'required|exists:sizes,id',
             'price' => 'required|numeric|min:0',
             'sale_price' => 'nullable|numeric|min:0',
+            'variations.*.stock_quantity' => 'nullable|numeric|min:0',
         ]);
         $exists = ProductVariation::where('product_id', $data['product_id'])
             ->where('color_id', $data['color_id'])
