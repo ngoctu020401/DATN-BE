@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\ProductVariation;
 use Illuminate\Http\Request;
@@ -36,8 +37,12 @@ class CartController extends Controller
         ]);
 
         $user = Auth::user();
-        $cart = $user->cart;
-
+        $cart = $user->cart ?? null;
+        if(!$cart){
+            Cart::create([
+                'user_id'=>$user->id
+            ]);
+        }
         $variationId = (int) $request->input('variation_id');
         $quantity = (int) $request->input('quantity');
 
