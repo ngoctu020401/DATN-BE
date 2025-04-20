@@ -90,4 +90,9 @@ class AuthController extends Controller
             ], 500);
         }
     }
+    //
+    public function profile(){
+        $user = auth('sanctum')->user();
+        return response()->json($user,200);
+    }
 }

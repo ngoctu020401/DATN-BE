@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Route;
 // Chức năng không cần đăng nhập
 Route::post('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/signup', [AuthController::class, 'signup']);
+Route::get('/profile', [AuthController::class, 'profile']);
 //  Sản phẩm mới
 Route::get('/new-products', [HomeController::class, 'newProdutcs']);
 
