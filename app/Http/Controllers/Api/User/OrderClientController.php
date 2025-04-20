@@ -32,7 +32,7 @@ class OrderClientController extends Controller
         $cartItemIds = $request->cart_item_ids;
         $paymentMethod = $request->payment_method;
 
-        $cartItems = CartItem::with('productVariation')
+        $cartItems = CartItem::with('variation')
             ->where('cart_id', $user->cart->id)
             ->whereIn('id', $cartItemIds)
             ->get();
@@ -43,11 +43,11 @@ class OrderClientController extends Controller
 
         $totalAmount = 0;
         foreach ($cartItems as $item) {
-            if ($item->quantity > $item->productVariation->stock_quantity) {
+            if ($item->quantity > $item->variation->stock_quantity) {
                 return response()->json([
-                    'message' => "Sản phẩm {$item->productVariation->name} không đủ hàng tồn."], 400);
+                    'message' => "Sản phẩm {$item->variation->name} không đủ hàng tồn."], 400);
             }
-            $totalAmount += $item->quantity * $item->productVariation->price;
+            $totalAmount += $item->quantity * $item->variation->price;
         }
 
         DB::beginTransaction();
@@ -71,15 +71,15 @@ class OrderClientController extends Controller
             foreach ($cartItems as $item) {
                 OrderItem::create([
                     'order_id' => $order->id,
-                    'product_name' => $item->productVariation->product->name,
+                    'product_name' => $item->variation->product->name,
                     'variation_id' => $item->variation_id,
-                    'product_price' => $item->productVariation->price,
+                    'product_price' => $item->variation->price,
                     'quantity' => $item->quantity,
-                    'image'=> $item->productVariation->product->main_image,
-                    'variation' => $item->productVariation->getVariation()
+                    'image'=> $item->variation->product->main_image,
+                    'variation' => $item->variation->getVariation()
                 ]);
 
-                $item->productVariation->decrement('stock_quantity', $item->quantity);
+                $item->variation->decrement('stock_quantity', $item->quantity);
             }
 
             if ($paymentMethod === 'vnpay') {
