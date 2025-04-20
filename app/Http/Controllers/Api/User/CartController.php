@@ -14,8 +14,13 @@ class CartController extends Controller
     public function index()
     {
         $user = Auth::user(); // Lấy ra người dùng được gửi lên = token
-        $cart = $user->cart; // Lấy giỏ hàng của người dùng đó
-
+        $cart = $user->cart ; // Lấy giỏ hàng của người dùng đó
+        if (!$cart) {
+            return response()->json([
+                'items' => [],
+                'message' => 'Giỏ hàng trống'
+            ]);
+        }
         $items = CartItem::with('productVariation.product', 'productVariation.color', 'productVariation.size')
             ->where('cart_id', $cart->id)
             ->get(); // Lấy ra  các item có trong giỏ hàng
