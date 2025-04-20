@@ -14,7 +14,7 @@ class CartController extends Controller
     public function index()
     {
         $user = Auth::user(); // Lấy ra người dùng được gửi lên = token
-        $cart = $user->cart ; // Lấy giỏ hàng của người dùng đó
+        $cart = $user->cart ?? null; // Lấy giỏ hàng của người dùng đó
         if (!$cart) {
             return response()->json([
                 'items' => [],
