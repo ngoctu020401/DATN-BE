@@ -111,6 +111,17 @@ class OrderClientController extends Controller
 
         $vnp_HashSecret = "XBB6GOAPO5O5ARJ5FF2JU658OGNMIQWZ";
         $vnp_SecureHash = $request['vnp_SecureHash'];
+        $order = Order::where('order_code', $request['vnp_TxnRef'])->first();
+        PaymentOnline::create([
+            'order_id' => $order->id,
+            'amount' => $request->input('vnp_Amount') / 100, 
+            'vnp_transaction_no' => $request->input('vnp_TransactionNo'),
+            'vnp_bank_code' => $request->input('vnp_BankCode'),
+            'vnp_bank_tran_no' => $request->input('vnp_BankTranNo'),
+            'vnp_pay_date' => Carbon::createFromFormat('YmdHis', $request->input('vnp_PayDate')),
+            'vnp_card_type' => $request->input('vnp_CardType'),
+            'vnp_response_code' => $request->input('vnp_ResponseCode'),
+        ]);
         $inputData = array();
         foreach ($_GET as $key => $value) {
             if (substr($key, 0, 4) == "vnp_") {
@@ -136,9 +147,9 @@ class OrderClientController extends Controller
         if ($secureHash === $vnp_SecureHash) {
             if ($request['vnp_ResponseCode'] == '00') {
                 // Giao dịch thành công, cập nhật trạng thái đơn hàng
-                $order = Order::where('order_code', $request['vnp_TxnRef'])->first();
+                
                 if ($order) {
-                    $order->update(['status_payment' => 2]);
+                    $order->update(['payment_status_id' => 2]);
                 }
 
                 return response()->json([
