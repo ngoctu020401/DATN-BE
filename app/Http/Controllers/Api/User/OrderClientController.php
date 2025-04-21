@@ -173,43 +173,45 @@ class OrderClientController extends Controller
         $vnp_Url = 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
         $vnp_HashSecret = 'XBB6GOAPO5O5ARJ5FF2JU658OGNMIQWZ'; 
         //
-        $vnp_TxnRef = $order->code;
-        $vnp_OrderInfo = "Thanh toán hóa đơn " . $order->order_code;
-        $vnp_OrderType = "100002";
-        $vnp_Amount = $order->final_amount  * 100;
-        $vnp_Locale = "VN";
-        $vnp_IpAddr = request()->ip();
-        $createDate = Carbon::now(); // thời điểm khởi tạo
-        $expireDate = $createDate->copy()->addMinutes($expireInMinutes);
-        $inputData = [
-            "vnp_Version" => "2.1.0",
-            "vnp_TmnCode" => $vnp_TmnCode,
-            "vnp_Amount" => $vnp_Amount,
-            "vnp_Command" => "pay",
-            "vnp_CreateDate" => date('YmdHis'),
-            "vnp_CurrCode" => "VND",
-            "vnp_IpAddr" => $vnp_IpAddr,
-            "vnp_Locale" => $vnp_Locale,
-            "vnp_OrderInfo" => $vnp_OrderInfo,
-            "vnp_OrderType" => 'other',
-            "vnp_ReturnUrl" => $vnp_ReturnUrl,
-            "vnp_TxnRef" => $vnp_TxnRef,
-            "vnp_CreateDate" => $createDate->format('YmdHis'),
-            "vnp_ExpireDate" => $expireDate->format('YmdHis'),
-        ];
-
-        ksort($inputData);
-        $query = "";
-        $hashdata = "";
-        foreach ($inputData as $key => $value) {
-            $hashdata .= ($hashdata ? '&' : '') . urlencode($key) . "=" . urlencode($value);
-            $query .= urlencode($key) . "=" . urlencode($value) . '&';
-        }
-
-        $vnpSecureHash = hash_hmac('sha512', $hashdata, $vnp_HashSecret);
-        $query .= 'vnp_SecureHash=' . $vnpSecureHash;
-
-        return $vnp_Url . "?" . $query;
+        $vnp_TxnRef = $order->order_code;
+            $vnp_OrderInfo = "Thanh toán hóa đơn " . $order->order_code;
+            $vnp_OrderType = "100002";
+            $vnp_Amount = $order->totalAfterDiscount * 100;
+            $vnp_Locale = "VN";
+            $vnp_IpAddr = $_SERVER['REMOTE_ADDR'];
+            $inputData = [
+                "vnp_Version" => "2.1.0",
+                "vnp_TmnCode" => $vnp_TmnCode,
+                "vnp_Amount" => $vnp_Amount,
+                "vnp_Command" => "pay",
+                "vnp_CreateDate" => date('YmdHis'),
+                "vnp_CurrCode" => "VND",
+                "vnp_IpAddr" => $vnp_IpAddr,
+                "vnp_Locale" => $vnp_Locale,
+                "vnp_OrderInfo" => $vnp_OrderInfo,
+                "vnp_OrderType" => $vnp_OrderType,
+                "vnp_ReturnUrl" => $vnp_ReturnUrl,
+                "vnp_TxnRef" => $vnp_TxnRef
+            ];
+            ksort($inputData);
+            $query = "";
+            $i = 0;
+            $hashdata = "";
+            foreach ($inputData as $key => $value) {
+                if ($i == 1) {
+                    $hashdata .= '&' . urlencode($key) . "=" . urlencode($value);
+                } else {
+                    $hashdata .= urlencode($key) . "=" . urlencode($value);
+                    $i = 1;
+                }
+                $query .= urlencode($key) . "=" . urlencode($value) . '&';
+            }
+            $vnp_Url = $vnp_Url . "?" . $query;
+            if (isset($vnp_HashSecret)) {
+                $vnpSecureHash = hash_hmac('sha512', $hashdata, $vnp_HashSecret);
+                $vnp_Url .= 'vnp_SecureHash=' . $vnpSecureHash;
+            }
+            return $vnp_Url;
     }
     //LỊch sử đơn hàng
     

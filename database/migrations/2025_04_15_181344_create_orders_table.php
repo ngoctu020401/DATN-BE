@@ -23,7 +23,7 @@ return new class extends Migration
             $table->decimal('total_amount', 10, 2);
             $table->decimal('shipping', 10, 2)->default(0);
             $table->decimal('final_amount', 10, 2);
-            $table->string('payment_url')->nullable();
+            $table->text('payment_url')->nullable();
             $table->string('payment_method');
             $table->foreignId('order_status_id')->constrained('order_statuses');
             $table->foreignId('payment_status_id')->constrained('payment_statuses');
