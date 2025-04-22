@@ -309,6 +309,11 @@ class OrderClientController extends Controller
         return response()->json([
             'id' => $order->id,
             'code' => $order->order_code,
+            'name' => $order->name,
+            'phone' => $order->phone,
+            'email' => $order->email,
+            'address' => $order->address,
+            'note' => $order->note,
             'status' => [
                 'id' => $order->status->id ?? null,
                 'name' => $order->status->name ?? null,
