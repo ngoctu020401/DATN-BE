@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\User;
 use App\Http\Controllers\Controller;
 use App\Models\CartItem;
 use App\Models\Order;
+use App\Models\OrderHistory;
 use App\Models\OrderItem;
 use App\Models\PaymentOnline;
 use Carbon\Carbon;
@@ -90,7 +91,12 @@ class OrderClientController extends Controller
 
             // Xóa cart items đã đặt
             CartItem::whereIn('id', $cartItemIds)->delete();
-
+            OrderHistory::create(
+                [
+                    'order_id'=>$order->id,
+                    'order_status_id' => 1
+                ]
+            );
             DB::commit();
 
             return response()->json([
@@ -266,7 +272,7 @@ class OrderClientController extends Controller
 
                 return [
                     'id' => $order->id,
-                    'code' => $order->order_code,
+                    'order_code' => $order->order_code,
                     'final_amount' => $order->final_amount,
                     'status_id' => $order->status->name,
                     'payment_method' => $order->payment_method,
@@ -281,4 +287,11 @@ class OrderClientController extends Controller
             }),
         ]);
     }
+    // Hủy đơn hàng
+
+    //  Thanh toán lại
+
+    // Yêu cầu hoàn tiền trả hàng
+
+    // Hoàn tất đơn hàng
 }
