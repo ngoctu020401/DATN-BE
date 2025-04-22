@@ -41,6 +41,8 @@ class OrderController extends Controller
             'email' => $order->email,
             'address' => $order->address,
             'note' => $order->note,
+            'refund'=>$order->refundRequest,
+            'payment'=>$order->paymentOnlines,
             'status' => [
                 'id' => $order->status->id ?? null,
                 'name' => $order->status->name ?? 'Không xác định',
