@@ -32,6 +32,7 @@ class OrderClientController extends Controller
         ]);
 
         $user = auth('sanctum')->user();
+        $userId = $user->id ;
         $cartItemIds = $request->cart_item_ids;
         $paymentMethod = $request->payment_method;
 
@@ -57,7 +58,7 @@ class OrderClientController extends Controller
         DB::beginTransaction();
         try {
             $order = Order::create([
-                'user_id' => $user->id,
+                'user_id' => $userId,
                 'order_code' => 'ORD' . time(),
                 'total_amount' => $totalAmount,
                 'final_amount' => $totalAmount, // có thể trừ giảm giá sau
@@ -293,14 +294,15 @@ class OrderClientController extends Controller
     //Chi tiết đơn hàng
     public function show($id)
     {
-        $user = auth()->user();
+        $user = auth('sanctum')->user();
+        $userId = $user->id ;
 
         $order = Order::with([
             'items',
             'status',
             'paymentStatus',
             'refundRequest',
-        ])->where('user_id', $user->id)->findOrFail($id);
+        ])->where('user_id', $userId)->findOrFail($id);
 
         $refund = $order->refundRequest;
 
@@ -361,13 +363,14 @@ class OrderClientController extends Controller
 
     public function cancel(Request $request, $id)
     {
-        $user = auth()->user();
+        $user = auth('sanctum')->user();
+        $userId = $user->id ;
 
         $request->validate([
             'cancel_reason' => 'required|string|max:255',
         ]);
 
-        $order = Order::where('user_id', $user->id)
+        $order = Order::where('user_id', $userId)
             ->whereIn('order_status_id', [1, 2])
             ->findOrFail($id);
 
@@ -391,7 +394,7 @@ class OrderClientController extends Controller
         if ($needRefund && !$order->refundRequest) {
             RefundRequest::create([
                 'order_id' => $order->id,
-                'user_id' => $user->id,
+                'user_id' => $userId,
                 'type' => 'cancel_before_shipping',
                 'amount' => $order->final_amount,
                 'reason' => 'Tự động tạo và duyệt yêu cầu hoàn tiền do khách huỷ đơn hàng đã thanh toán.',
@@ -410,9 +413,10 @@ class OrderClientController extends Controller
     //  Thanh toán lại
     public function retryPayment($id)
     {
-        $user = auth()->user();
+        $user = auth('sanctum')->user();
+        $userId = $user->id ;
 
-        $order = Order::where('user_id', $user->id)
+        $order = Order::where('user_id', $userId)
             ->where('payment_method', 'vnpay')
             ->whereIn('payment_status_id', [1]) // chưa thanh toán
             ->findOrFail($id);
@@ -438,7 +442,8 @@ class OrderClientController extends Controller
     // Yêu cầu hoàn tiền trả hàng
     public function requestRefund(Request $request, $orderId)
     {
-        $user = auth()->user();
+        $user = auth('sanctum')->user();
+        $userId = $user->id ;
 
         $request->validate([
             'type' => 'required|in:cancel_before_shipping,return_after_received',
@@ -450,7 +455,7 @@ class OrderClientController extends Controller
             'images.*' => 'required|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
-        $order = Order::where('user_id', $user->id)->findOrFail($orderId);
+        $order = Order::where('user_id', $userId)->findOrFail($orderId);
         //
         if ($order->order_status_id !== 4) {
             return response()->json([
@@ -476,7 +481,7 @@ class OrderClientController extends Controller
         // Tạo yêu cầu hoàn tiền
         RefundRequest::create([
             'order_id' => $order->id,
-            'user_id' => $user->id,
+            'user_id' => $userId,
             'type' => $request->type,
             'amount' => $request->amount,
             'reason' => $request->reason,
@@ -495,9 +500,10 @@ class OrderClientController extends Controller
     // Hoàn tất đơn hàng
     public function complete($id)
     {
-        $user = auth()->user();
+        $user = auth('sanctum')->user();
+        $userId = $user->id ;
 
-        $order = Order::where('user_id', $user->id)
+        $order = Order::where('user_id', $userId)
             ->where('order_status_id', 4) // chỉ cho phép hoàn tất khi đã giao
             ->find($id);
         if (!$order) {
