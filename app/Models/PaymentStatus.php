@@ -8,4 +8,5 @@ use Illuminate\Database\Eloquent\Model;
 class PaymentStatus extends Model
 {
     use HasFactory;
+    protected $fillable = ['name','next_status'];
 }

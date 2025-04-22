@@ -226,9 +226,10 @@ class OrderClientController extends Controller
     public function getUserOrderHistory(Request $request)
     {
         $status = $request->input('status', 'all');
-        $userId = auth()->id();
+        $user = auth('sanctum')->user();
+        $userId = $user->id ;
 
-        $query = Order::with(['transactions', 'refundRequests', 'items'])
+        $query = Order::with([ 'refundRequest', 'items'])
             ->where('user_id', $userId);
 
         // Áp dụng bộ lọc theo status
@@ -254,7 +255,7 @@ class OrderClientController extends Controller
             case 'refunding': // Hoàn hàng trả tiền
                 $query->where(function ($q) {
                     $q->whereIn('order_status_id', [7, 8])
-                        ->orWhereHas('refundRequests', fn($qr) => $qr->whereIn('status', ['pending', 'approved']));
+                        ->orWhereHas('refundRequest', fn($qr) => $qr->whereIn('status', ['pending', 'approved']));
                 });
                 break;
             case 'cancelled': // đã hủy
