@@ -186,7 +186,7 @@ class OrderController extends Controller
         ]);
 
         // Đồng thời cập nhật trạng thái đơn hàng nếu cần
-        $refund->order->update(['order_status_id' => 8]); // 8 = Hoàn tiền thành công
+        $refund->order->update(['order_status_id' => 8,'payment_status_id' => 3]); // 8 = Hoàn tiền thành công
 
         return response()->json([
             'message' => 'Đã xác nhận hoàn tiền thành công.',

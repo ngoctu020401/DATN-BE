@@ -8,10 +8,12 @@ use App\Models\Order;
 use App\Models\OrderHistory;
 use App\Models\OrderItem;
 use App\Models\PaymentOnline;
+use App\Models\RefundRequest;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class OrderClientController extends Controller
 {
@@ -356,11 +358,164 @@ class OrderClientController extends Controller
         ]);
     }
 
-    // Hủy đơn hàng
+    public function cancel(Request $request, $id)
+    {
+        $user = auth()->user();
+
+        $request->validate([
+            'cancel_reason' => 'required|string|max:255',
+        ]);
+
+        $order = Order::where('user_id', $user->id)
+            ->whereIn('order_status_id', [1, 2])
+            ->findOrFail($id);
+
+        // Trường hợp đã thanh toán online (VNPAY)
+        $needRefund = $order->payment_method === 'vnpay' && in_array($order->payment_status_id, [2]); // 2 = đã thanh toán
+
+        // Huỷ đơn hàng
+        $order->update([
+            'order_status_id' => 6,
+            'cancel_reason' => $request->cancel_reason,
+        ]);
+
+        // Ghi lịch sử huỷ đơn
+        OrderHistory::create([
+            'order_id' => $order->id,
+            'order_status_id' => 6,
+            'note' => 'Khách hàng huỷ đơn: ' . $request->cancel_reason,
+        ]);
+
+        // Nếu cần hoàn tiền thủ công (vì đã thanh toán VNPAY)
+        if ($needRefund && !$order->refundRequest) {
+            RefundRequest::create([
+                'order_id' => $order->id,
+                'user_id' => $user->id,
+                'type' => 'cancel_before_shipping',
+                'amount' => $order->final_amount,
+                'reason' => 'Tự động tạo và duyệt yêu cầu hoàn tiền do khách huỷ đơn hàng đã thanh toán.',
+                'status' => 'approved',
+                'approved_at' => now(),
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Đơn hàng đã được huỷ thành công.',
+            'refund_created' => $needRefund,
+        ]);
+    }
+
 
     //  Thanh toán lại
+    public function retryPayment($id)
+    {
+        $user = auth()->user();
+
+        $order = Order::where('user_id', $user->id)
+            ->where('payment_method', 'vnpay')
+            ->whereIn('payment_status_id', [1]) // chưa thanh toán
+            ->findOrFail($id);
+
+        // Kiểm tra xem link đã tạo quá 60 phút chưa
+        $expired = $order->created_at->diffInSeconds(now()) > 3600;
+
+        if ($expired || !$order->payment_url) {
+            $newUrl = $this->createPaymentUrl($order, 60);
+
+            $order->update([
+                'payment_url' => $newUrl,
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Lấy link thanh toán thành công.',
+            'payment_url' => $order->payment_url,
+            'expired' => $expired,
+        ]);
+    }
 
     // Yêu cầu hoàn tiền trả hàng
+    public function requestRefund(Request $request, $orderId)
+    {
+        $user = auth()->user();
+
+        $request->validate([
+            'type' => 'required|in:cancel_before_shipping,return_after_received',
+            'amount' => 'required|numeric|min:0',
+            'reason' => 'required|string|max:255',
+            'bank_name' => 'required|string|max:100',
+            'bank_account_name' => 'required|string|max:100',
+            'bank_account_number' => 'required|string|max:50',
+            'images.*' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+        ]);
+
+        $order = Order::where('user_id', $user->id)->findOrFail($orderId);
+        //
+        if ($order->order_status_id !== 4) {
+            return response()->json([
+                'message' => 'Chỉ đơn hàng đã giao mới được yêu cầu hoàn tiền.',
+            ], 422);
+        }
+        // Kiểm tra đã có yêu cầu hoàn tiền chưa
+        if ($order->refundRequest) {
+            return response()->json([
+                'message' => 'Đơn hàng đã có yêu cầu hoàn tiền.',
+            ], 422);
+        }
+        // Xử lý ảnh minh chứng
+        $imagePaths = [];
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $filename = 'refund_' . now()->format('Ymd_His') . '_' . Str::uuid() . '.' . $image->getClientOriginalExtension();
+                $path = $image->storeAs('uploads', $filename, 'public');
+                $imagePaths[] = $path;
+            }
+        }
+
+        // Tạo yêu cầu hoàn tiền
+        RefundRequest::create([
+            'order_id' => $order->id,
+            'user_id' => $user->id,
+            'type' => $request->type,
+            'amount' => $request->amount,
+            'reason' => $request->reason,
+            'images' => $imagePaths,
+            'status' => 'pending',
+            'bank_name' => $request->bank_name,
+            'bank_account_name' => $request->bank_account_name,
+            'bank_account_number' => $request->bank_account_number,
+        ]);
+
+        return response()->json([
+            'message' => 'Đã gửi yêu cầu hoàn tiền thành công.',
+        ]);
+    }
 
     // Hoàn tất đơn hàng
+    public function complete($id)
+    {
+        $user = auth()->user();
+
+        $order = Order::where('user_id', $user->id)
+            ->where('order_status_id', 4) // chỉ cho phép hoàn tất khi đã giao
+            ->find($id);
+        if (!$order) {
+            return response()->json([
+                'message' => 'Không thể hoàn tất đơn hàng. Đơn không tồn tại hoặc không ở trạng thái cho phép.',
+            ], 404);
+        }
+        $order->update([
+            'order_status_id' => 5, 
+            'closed_at' => now()
+        ]);
+
+        OrderHistory::create([
+            'order_id' => $order->id,
+            'order_status_id' => 5,
+        ]);
+
+        return response()->json([
+            'message' => 'Đơn hàng đã được hoàn tất.',
+        ]);
+    }
 }

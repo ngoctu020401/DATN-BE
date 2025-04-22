@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\CategoryController;
 use App\Http\Controllers\Api\Admin\ColorController;
+use App\Http\Controllers\Api\Admin\OrderController;
 use App\Http\Controllers\Api\Admin\ProductController;
 use App\Http\Controllers\Api\Admin\SizeController;
 use App\Http\Controllers\Api\Admin\UserController;
@@ -54,6 +55,14 @@ Route::prefix('cart')->group(function () {
     Route::delete('/remove', [CartController::class, 'remove']); // Xoá sản phẩm khỏi giỏ
     Route::post('/checkout-data', [CartController::class, 'checkoutData']); // Lấy dữ liệu sản phẩm đã chọn để checkout
 });
+Route::prefix('orders')->group(function () {
+    Route::get('/history', [OrderClientController::class, 'getUserOrderHistory']); // lịch sử đơn
+    Route::get('/{id}', [OrderClientController::class, 'show']); // chi tiết đơn
+    Route::post('/{id}/cancel', [OrderClientController::class, 'cancel']); // huỷ đơn
+    Route::post('/{id}/complete', [OrderClientController::class, 'complete']); // hoàn tất
+    Route::post('/{id}/retry-payment', [OrderClientController::class, 'retryPayment']); // thanh toán lại
+    Route::post('/{id}/refund-request', [OrderClientController::class, 'requestRefund']); // yêu cầu hoàn tiền
+});
 //
 Route::post('/checkout', [OrderClientController::class, 'store']);
 
@@ -82,6 +91,17 @@ Route::prefix('admin')->group(function () { // Chức năng cần là tài kho�
     Route::put('categories/{id}', [CategoryController::class, 'update']);
     Route::delete('categories/{id}', [CategoryController::class, 'destroy']);
 
+    //Đơn hàng 
+    Route::prefix('orders')->middleware('auth:sanctum')->group(function () {
+        Route::get('/', [OrderController::class, 'index']); // danh sách đơn hàng
+        Route::get('{id}', [OrderController::class, 'show']); // chi tiết đơn hàng
+        Route::post('{id}/change-status', [OrderController::class, 'changeStatus']); // cập nhật trạng thái
+    
+        Route::post('refunds/{id}/approve', [OrderController::class, 'approveRefund']); // duyệt hoàn tiền
+        Route::post('refunds/{id}/reject', [OrderController::class, 'rejectRefund']); // từ chối hoàn tiền
+        Route::post('refunds/{id}/refunded', [OrderController::class, 'markAsRefunded']); // xác nhận đã hoàn tiền
+    });
+    
     // Người dùng 
     Route::get('users', [UserController::class, 'index']);        // Danh sách người dùng (có phân trang)
     Route::post('users', [UserController::class, 'store']);       // Tạo người dùng mới
