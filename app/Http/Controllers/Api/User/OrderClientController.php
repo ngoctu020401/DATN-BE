@@ -296,7 +296,7 @@ class OrderClientController extends Controller
         $user = auth()->user();
 
         $order = Order::with([
-            'items.product',
+            'items',
             'status',
             'paymentStatus',
             'refundRequest',
