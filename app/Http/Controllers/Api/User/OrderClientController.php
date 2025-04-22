@@ -93,7 +93,7 @@ class OrderClientController extends Controller
             CartItem::whereIn('id', $cartItemIds)->delete();
             OrderHistory::create(
                 [
-                    'order_id'=>$order->id,
+                    'order_id' => $order->id,
                     'order_status_id' => 1
                 ]
             );
@@ -251,7 +251,7 @@ class OrderClientController extends Controller
                 break;
             case 'refunding': // Hoàn hàng trả tiền
                 $query->where(function ($q) {
-                    $q->whereIn('order_status_id', [7, 8]) 
+                    $q->whereIn('order_status_id', [7, 8])
                         ->orWhereHas('refundRequests', fn($qr) => $qr->whereIn('status', ['pending', 'approved']));
                 });
                 break;
@@ -287,6 +287,75 @@ class OrderClientController extends Controller
             }),
         ]);
     }
+    //Chi tiết đơn hàng
+    public function show($id)
+    {
+        $user = auth()->user();
+
+        $order = Order::with([
+            'items.product',
+            'status',
+            'paymentStatus',
+            'refundRequest',
+        ])->where('user_id', $user->id)->findOrFail($id);
+
+        $refund = $order->refundRequest;
+
+        return response()->json([
+            'id' => $order->id,
+            'code' => $order->order_code,
+            'status' => [
+                'id' => $order->status->id ?? null,
+                'name' => $order->status->name ?? null,
+            ],
+            'payment_status' => [
+                'id' => $order->paymentStatus->id ?? null,
+                'name' => $order->paymentStatus->name ?? null,
+            ],
+            'payment_method' => $order->payment_method,
+            'total_amount' => $order->total_amount,
+            'final_amount' => $order->final_amount,
+            'shipping' => $order->shipping,
+            'note' => $order->note,
+            'cancel_reason' => $order->cancel_reason,
+            'created_at' => $order->created_at->format('d-m-Y H:i'),
+
+            // Sản phẩm trong đơn
+            'items' => $order->items->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'product_name' => $item->product_name,
+                    'variation_id' => $item->variation_id,
+                    'product_price' => $item->product_price,
+                    'quantity' => $item->quantity,
+                    'image' => $item->image,
+                    'variation' => $item->variation
+                ];
+            }),
+            // lịch sử đơn hàng 
+            'histories' => $order->histories->map(function ($history) {
+                return [
+                    'id' => $history->id,
+                    'status' => $history->status->name ?? 'Không xác định',
+                    'note' => $history->note,
+                    'created_at' => $history->created_at->format('d-m-Y H:i'),
+                ];
+            }),
+            // Yêu cầu hoàn tiền nếu có
+            'refund_request' => $refund ? [
+                'id' => $refund->id,
+                'type' => $refund->type,
+                'amount' => $refund->amount,
+                'reason' => $refund->reason,
+                'status' => $refund->status,
+                'reject_reason' => $refund->status === 'rejected' ? $refund->reject_reason : null,
+                'approved_at' => $refund->approved_at?->format('d-m-Y H:i'),
+                'refunded_at' => $refund->refunded_at?->format('d-m-Y H:i'),
+                'proof_image_url' => $refund->refund_proof_image ? asset('storage/' . $refund->refund_proof_image) : null,
+            ] : null,
+        ]);
+    }
+
     // Hủy đơn hàng
 
     //  Thanh toán lại

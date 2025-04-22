@@ -18,4 +18,9 @@ class OrderHistory extends Model
     {
         return $this->belongsTo(Order::class);
     }
+    public function status()
+{
+    return $this->belongsTo(OrderStatus::class, 'order_status_id');
+}
+
 }
