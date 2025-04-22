@@ -50,4 +50,8 @@ class Order extends Model
     {
         return $this->belongsTo(PaymentStatus::class, 'payment_status_id');
     }
+    public function refundRequest()
+    {
+        return $this->hasOne(RefundRequest::class);
+    }
 }
