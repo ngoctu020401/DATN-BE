@@ -446,7 +446,7 @@ class OrderClientController extends Controller
             'bank_name' => 'required|string|max:100',
             'bank_account_name' => 'required|string|max:100',
             'bank_account_number' => 'required|string|max:50',
-            'images.*' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'images.*' => 'required|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
         $order = Order::where('user_id', $user->id)->findOrFail($orderId);
