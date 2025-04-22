@@ -92,8 +92,9 @@ Route::prefix('admin')->group(function () { // Chức năng cần là tài kho�
     Route::delete('categories/{id}', [CategoryController::class, 'destroy']);
 
     //Đơn hàng 
-    Route::prefix('orders')->middleware('sanctum')->group(function () {
+    Route::prefix('orders')->group(function () {
         Route::get('/', [OrderController::class, 'index']); // danh sách đơn hàng
+        Route::get('/status', [OrderController::class, 'orderStatus']); // danh sách đơn hàng
         Route::get('{id}', [OrderController::class, 'show']); // chi tiết đơn hàng
         Route::post('{id}/change-status', [OrderController::class, 'changeStatus']); // cập nhật trạng thái
     

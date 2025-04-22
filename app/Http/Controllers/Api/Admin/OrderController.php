@@ -11,6 +11,12 @@ use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
+    ////
+    public function orderStatus()
+    {
+        $status = OrderStatus::all();
+        return response()->json($status, 200);
+    }
     //
     public function index()
     {
@@ -186,7 +192,7 @@ class OrderController extends Controller
         ]);
 
         // Đồng thời cập nhật trạng thái đơn hàng nếu cần
-        $refund->order->update(['order_status_id' => 8,'payment_status_id' => 3]); // 8 = Hoàn tiền thành công
+        $refund->order->update(['order_status_id' => 8, 'payment_status_id' => 3]); // 8 = Hoàn tiền thành công
 
         return response()->json([
             'message' => 'Đã xác nhận hoàn tiền thành công.',
