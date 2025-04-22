@@ -45,7 +45,8 @@ class OrderClientController extends Controller
         foreach ($cartItems as $item) {
             if ($item->quantity > $item->variation->stock_quantity) {
                 return response()->json([
-                    'message' => "Sản phẩm {$item->variation->name} không đủ hàng tồn."], 400);
+                    'message' => "Sản phẩm {$item->variation->name} không đủ hàng tồn."
+                ], 400);
             }
             $totalAmount += $item->quantity * $item->variation->price;
         }
@@ -65,7 +66,7 @@ class OrderClientController extends Controller
                 'note' => $request->note,
                 'order_status_id' => 1,
                 'payment_status_id' => 1,
-                'shipping'=>30000
+                'shipping' => 30000
             ]);
 
             foreach ($cartItems as $item) {
@@ -75,7 +76,7 @@ class OrderClientController extends Controller
                     'variation_id' => $item->variation_id,
                     'product_price' => $item->variation->price,
                     'quantity' => $item->quantity,
-                    'image'=> $item->variation->product->main_image,
+                    'image' => $item->variation->product->main_image,
                     'variation' => $item->variation->getVariation()
                 ]);
 
@@ -83,7 +84,7 @@ class OrderClientController extends Controller
             }
 
             if ($paymentMethod === 'vnpay') {
-                $paymentUrl = $this->createPaymentUrl($order,60);
+                $paymentUrl = $this->createPaymentUrl($order, 60);
                 $order->update(['payment_url' => $paymentUrl]);
             }
 
@@ -114,7 +115,7 @@ class OrderClientController extends Controller
         $order = Order::where('order_code', $request['vnp_TxnRef'])->first();
         PaymentOnline::create([
             'order_id' => $order->id,
-            'amount' => $request->input('vnp_Amount') / 100, 
+            'amount' => $request->input('vnp_Amount') / 100,
             'vnp_transaction_no' => $request->input('vnp_TransactionNo'),
             'vnp_bank_code' => $request->input('vnp_BankCode'),
             'vnp_bank_tran_no' => $request->input('vnp_BankTranNo'),
@@ -147,7 +148,7 @@ class OrderClientController extends Controller
         if ($secureHash === $vnp_SecureHash) {
             if ($request['vnp_ResponseCode'] == '00') {
                 // Giao dịch thành công, cập nhật trạng thái đơn hàng
-                
+
                 if ($order) {
                     $order->update(['payment_status_id' => 2]);
                 }
@@ -165,54 +166,119 @@ class OrderClientController extends Controller
         }
     }
     //Thanh toán online
-    public function createPaymentUrl($order,$expireInMinutes)
+    public function createPaymentUrl($order, $expireInMinutes)
     {
         //Khai báo biến
         $vnp_TmnCode = 'OFRCXR48';
         $vnp_ReturnUrl = 'http://localhost:5173/thanks';
         $vnp_Url = 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
-        $vnp_HashSecret = 'XBB6GOAPO5O5ARJ5FF2JU658OGNMIQWZ'; 
+        $vnp_HashSecret = 'XBB6GOAPO5O5ARJ5FF2JU658OGNMIQWZ';
         //
         $vnp_TxnRef = $order->order_code;
-            $vnp_OrderInfo = "Thanh toán hóa đơn " . $order->order_code;
-            $vnp_OrderType = "100002";
-            $vnp_Amount = $order->totalAfterDiscount * 100;
-            $vnp_Locale = "VN";
-            $vnp_IpAddr = $_SERVER['REMOTE_ADDR'];
-            $inputData = [
-                "vnp_Version" => "2.1.0",
-                "vnp_TmnCode" => $vnp_TmnCode,
-                "vnp_Amount" => $vnp_Amount,
-                "vnp_Command" => "pay",
-                "vnp_CreateDate" => date('YmdHis'),
-                "vnp_CurrCode" => "VND",
-                "vnp_IpAddr" => $vnp_IpAddr,
-                "vnp_Locale" => $vnp_Locale,
-                "vnp_OrderInfo" => $vnp_OrderInfo,
-                "vnp_OrderType" => $vnp_OrderType,
-                "vnp_ReturnUrl" => $vnp_ReturnUrl,
-                "vnp_TxnRef" => $vnp_TxnRef
-            ];
-            ksort($inputData);
-            $query = "";
-            $i = 0;
-            $hashdata = "";
-            foreach ($inputData as $key => $value) {
-                if ($i == 1) {
-                    $hashdata .= '&' . urlencode($key) . "=" . urlencode($value);
-                } else {
-                    $hashdata .= urlencode($key) . "=" . urlencode($value);
-                    $i = 1;
-                }
-                $query .= urlencode($key) . "=" . urlencode($value) . '&';
+        $vnp_OrderInfo = "Thanh toán hóa đơn " . $order->order_code;
+        $vnp_OrderType = "100002";
+        $vnp_Amount = $order->totalAfterDiscount * 100;
+        $vnp_Locale = "VN";
+        $vnp_IpAddr = $_SERVER['REMOTE_ADDR'];
+        $inputData = [
+            "vnp_Version" => "2.1.0",
+            "vnp_TmnCode" => $vnp_TmnCode,
+            "vnp_Amount" => $vnp_Amount,
+            "vnp_Command" => "pay",
+            "vnp_CreateDate" => date('YmdHis'),
+            "vnp_CurrCode" => "VND",
+            "vnp_IpAddr" => $vnp_IpAddr,
+            "vnp_Locale" => $vnp_Locale,
+            "vnp_OrderInfo" => $vnp_OrderInfo,
+            "vnp_OrderType" => $vnp_OrderType,
+            "vnp_ReturnUrl" => $vnp_ReturnUrl,
+            "vnp_TxnRef" => $vnp_TxnRef
+        ];
+        ksort($inputData);
+        $query = "";
+        $i = 0;
+        $hashdata = "";
+        foreach ($inputData as $key => $value) {
+            if ($i == 1) {
+                $hashdata .= '&' . urlencode($key) . "=" . urlencode($value);
+            } else {
+                $hashdata .= urlencode($key) . "=" . urlencode($value);
+                $i = 1;
             }
-            $vnp_Url = $vnp_Url . "?" . $query;
-            if (isset($vnp_HashSecret)) {
-                $vnpSecureHash = hash_hmac('sha512', $hashdata, $vnp_HashSecret);
-                $vnp_Url .= 'vnp_SecureHash=' . $vnpSecureHash;
-            }
-            return $vnp_Url;
+            $query .= urlencode($key) . "=" . urlencode($value) . '&';
+        }
+        $vnp_Url = $vnp_Url . "?" . $query;
+        if (isset($vnp_HashSecret)) {
+            $vnpSecureHash = hash_hmac('sha512', $hashdata, $vnp_HashSecret);
+            $vnp_Url .= 'vnp_SecureHash=' . $vnpSecureHash;
+        }
+        return $vnp_Url;
     }
     //LỊch sử đơn hàng
-    
+    public function getUserOrderHistory(Request $request)
+    {
+        $status = $request->input('status', 'all');
+        $userId = auth()->id();
+
+        $query = Order::with(['transactions', 'refundRequests', 'items'])
+            ->where('user_id', $userId);
+
+        // Áp dụng bộ lọc theo status
+        switch ($status) {
+            case 'waiting_confirm':
+                $query->where('order_status_id', 1); //  chờ xác nhận
+                break;
+            case 'waiting_payment':
+                $query->where('payment_method', 'vnpay')->where('payment_status_id', 1); // chờ thanh toán
+                break;
+            case 'confirmed':
+                $query->where('order_status_id', 2); // Đã xác nhận
+                break;
+            case 'shipping':
+                $query->where('order_status_id', 3); // đang giao
+                break;
+            case 'shipped':
+                $query->where('order_status_id', 4); // đã giao
+                break;
+            case 'completed':
+                $query->where('order_status_id', 5); // hoàn tất
+                break;
+            case 'refunding': // Hoàn hàng trả tiền
+                $query->where(function ($q) {
+                    $q->whereIn('order_status_id', [7, 8]) 
+                        ->orWhereHas('refundRequests', fn($qr) => $qr->whereIn('status', ['pending', 'approved']));
+                });
+                break;
+            case 'cancelled': // đã hủy
+                $query->where('order_status_id', 6);
+                break;
+            default:
+                break;
+        }
+
+        $orders = $query->latest()->get();
+
+        return response()->json([
+            'data' => $orders->map(function ($order) {
+                $firstItem = $order->items->first();
+                $totalItems = $order->items->count();
+                $extraItemsCount = max($totalItems - 1, 0);
+
+                return [
+                    'id' => $order->id,
+                    'code' => $order->order_code,
+                    'final_amount' => $order->final_amount,
+                    'status_id' => $order->status->name,
+                    'payment_method' => $order->payment_method,
+                    'created_at' => $order->created_at->format('d-m-Y H:i'),
+                    'first_item' => $firstItem ? [
+                        'product_name' => $firstItem->product_name,
+                        'quantity' => $firstItem->quantity,
+                        'image' => $firstItem->image ?? null,
+                    ] : null,
+                    'extra_items_count' => $extraItemsCount,
+                ];
+            }),
+        ]);
+    }
 }
