@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariation;
@@ -40,12 +41,13 @@ class ProductController extends Controller
                 'main_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
                 'category_id' => 'nullable|exists:categories,id',
                 'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
-                'variations' => 'required|array',
-                'variations.*.color_id' => 'required|exists:colors,id',
-                'variations.*.size_id' => 'required|exists:sizes,id',
-                'variations.*.price' => 'required|numeric|min:0',
-                'variations.*.sale_price' => 'nullable|numeric|min:0',
-                'variations.*.stock_quantity' => 'nullable|numeric|min:0',
+                'color_id' => 'required|exists:colors,id',
+                'size_id' => 'required|exists:sizes,id',
+                'price' => 'required|numeric|min:0',
+                'sale_price' => 'nullable|numeric|lt:price',
+                'stock_quantity' => 'nullable|numeric|min:0',
+            ], [
+                'sale_price.lt' => 'Giá khuyến mãi phải nhỏ hơn giá gốc.',
             ]);
 
             // Lưu ảnh chính với tên duy nhất
@@ -63,11 +65,14 @@ class ProductController extends Controller
             ]);
 
             // Lưu biến thể
-            foreach ($data['variations'] as $variation) {
-                ProductVariation::create(array_merge($variation, [
-                    'product_id' => $product->id
-                ]));
-            }
+            ProductVariation::create([
+                'product_id' => $product->id,
+                'color_id' => $data['color_id'],
+                'size_id' => $data['size_id'],
+                'price' => $data['price'],
+                'sale_price' => $data['sale_price'] ?? null,
+                'stock_quantity' => $data['stock_quantity'] ?? 0,
+            ]);
 
             // Lưu các ảnh phụ nếu có
             if ($request->hasFile('images')) {
@@ -165,9 +170,12 @@ class ProductController extends Controller
     {
         $data = $request->validate([
             'price' => 'required|numeric|min:0',
-            'sale_price' => 'nullable|numeric|min:0',
+            'sale_price' => 'nullable|numeric|lt:price',
             'stock_quantity' => 'nullable|numeric|min:0',
+        ], [
+            'sale_price.lt' => 'Giá khuyến mãi phải nhỏ hơn giá gốc.',
         ]);
+
 
         try {
             $variation = ProductVariation::findOrFail($id);
@@ -228,9 +236,12 @@ class ProductController extends Controller
             'color_id' => 'required|exists:colors,id',
             'size_id' => 'required|exists:sizes,id',
             'price' => 'required|numeric|min:0',
-            'sale_price' => 'nullable|numeric|min:0',
+            'sale_price' => 'nullable|numeric|lt:price',
             'stock_quantity' => 'nullable|numeric|min:0',
+        ], [
+            'sale_price.lt' => 'Giá khuyến mãi phải nhỏ hơn giá gốc.',
         ]);
+
         $exists = ProductVariation::where('product_id', $data['product_id'])
             ->where('color_id', $data['color_id'])
             ->where('size_id', $data['size_id'])
@@ -260,19 +271,42 @@ class ProductController extends Controller
     public function deleteVariation($id)
     {
         try {
+            //  Tìm biến thể theo ID, nếu không có sẽ tự throw 404
             $variation = ProductVariation::findOrFail($id);
-            $variation->delete(); // Soft delete
-
+    
+            //  Các trạng thái đơn hàng được xem là "đã hoàn tất", không ảnh hưởng tới việc xóa biến thể
+            $orderStatusExcludes = [5, 6, 8]; // 5: Hoàn thành, 6: Đã huỷ, 8: Hoàn tiền thành công
+    
+            //  Kiểm tra xem biến thể này có nằm trong đơn hàng nào chưa hoàn tất không
+            $inActiveOrder = OrderItem::where('variation_id', $id)
+                ->whereHas('order', function ($query) use ($orderStatusExcludes) {
+                    $query->whereNotIn('order_status_id', $orderStatusExcludes);
+                })
+                ->exists();
+    
+            //  Nếu biến thể đang được dùng trong đơn hàng đang xử lý → không cho xóa
+            if ($inActiveOrder) {
+                return response()->json([
+                    'message' => 'Không thể xoá biến thể vì đang được sử dụng trong đơn hàng đang xử lý.',
+                ], 422);
+            }
+    
+            //  Không bị ràng buộc → tiến hành xóa (soft delete)
+            $variation->delete();
+    
             return response()->json([
-                'message' => 'Xóa biến thể thành công',
+                'message' => 'Xoá biến thể thành công',
             ], 200);
+    
         } catch (\Throwable $th) {
+            //  Lỗi bất ngờ → trả về thông báo lỗi
             return response()->json([
-                'message' => 'Không thể xóa biến thể',
+                'message' => 'Không thể xoá biến thể',
                 'error' => $th->getMessage(),
             ], 500);
         }
     }
+    
     //
     public function deleteImage($id)
     {

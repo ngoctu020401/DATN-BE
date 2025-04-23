@@ -52,7 +52,7 @@ class UserController extends Controller
                 $avatarPath = $request->file('avatar')->storeAs('uploads', $filename, 'public');
                 $data['avatar'] = $avatarPath;
             }
-    
+
             $data['password'] = Hash::make($validated['password']);
 
             $validated['password'] = Hash::make($validated['password']);
@@ -90,12 +90,12 @@ class UserController extends Controller
             if (!$user) {
                 return response()->json(['message' => 'Không tìm thấy người dùng'], 404);
             }
-    
+
             // Không cho sửa email hoặc user có role admin
             if ($user->role === 'admin') {
                 return response()->json(['message' => 'Không thể chỉnh sửa tài khoản admin'], 403);
             }
-    
+
             $validated = $request->validate([
                 'name' => 'sometimes|required|string|max:255',
                 'phone' => 'nullable|string|max:20',
@@ -103,9 +103,9 @@ class UserController extends Controller
                 'avatar' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
                 'role' => 'nullable|string',
             ]);
-    
+
             $data = $validated;
-            
+
             if ($request->hasFile('avatar')) {
                 if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
                     Storage::disk('public')->delete($user->avatar);
@@ -114,20 +114,19 @@ class UserController extends Controller
                 $avatarPath = $request->file('avatar')->storeAs('uploads', $filename, 'public');
                 $data['avatar'] = $avatarPath;
             }
-            
+
             $user->update($data);
             Log::info('Dữ liệu update:', $validated);
             return response()->json([
-                'message'=>'Bạn đã sửa thành công',
-                'data'=>$request->all()
-            ],200);
+                'message' => 'Bạn đã sửa thành công',
+                'data' => $request->all()
+            ], 200);
         } catch (\Throwable $th) {
             //throw $th;
             return response()->json([
-                'errors'=>$th->getMessage()
+                'errors' => $th->getMessage()
             ]);
         }
- 
     }
     //
     public function destroy($id)
@@ -151,5 +150,52 @@ class UserController extends Controller
         $user->delete();
 
         return response()->json(['message' => 'Đã xoá người dùng']);
+    }
+
+    //
+    public function blockUser(Request $request, $id)
+    {
+        $request->validate([
+            'reason' => 'required|string|max:255',
+        ]);
+
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json(['message' => 'Không tìm thấy người dùng'], 404);
+        }
+
+        // Không cho khóa tài khoản admin
+        if ($user->role === 'admin') {
+            return response()->json(['message' => 'Không thể khoá tài khoản admin'], 403);
+        }
+
+        $user->update([
+            'is_active' => false,
+            'inactive_reason' => $request->reason,
+        ]);
+
+        return response()->json([
+            'message' => 'Đã khoá tài khoản người dùng',
+            'reason' => $request->reason,
+        ]);
+    }
+    //
+    public function unblockUser($id)
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json(['message' => 'Không tìm thấy người dùng'], 404);
+        }
+
+        $user->update([
+            'is_active' => true,
+            'inactive_reason' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Đã mở khoá tài khoản người dùng',
+        ]);
     }
 }

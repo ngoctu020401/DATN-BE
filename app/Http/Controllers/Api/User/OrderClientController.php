@@ -32,7 +32,7 @@ class OrderClientController extends Controller
         ]);
 
         $user = auth('sanctum')->user();
-        $userId = $user->id ;
+        $userId = $user->id;
         $cartItemIds = $request->cart_item_ids;
         $paymentMethod = $request->payment_method;
 
@@ -78,7 +78,9 @@ class OrderClientController extends Controller
                     'order_id' => $order->id,
                     'product_name' => $item->variation->product->name,
                     'variation_id' => $item->variation_id,
-                    'product_price' => $item->variation->price,
+                    'product_price' => ($item->variation->sale_price ?? 0) > 0
+                        ? $item->variation->sale_price
+                        : $item->variation->price,
                     'quantity' => $item->quantity,
                     'image' => $item->variation->product->main_image,
                     'variation' => $item->variation->getVariation()
@@ -228,9 +230,9 @@ class OrderClientController extends Controller
     {
         $status = $request->input('status', 'all');
         $user = auth('sanctum')->user();
-        $userId = $user->id ;
+        $userId = $user->id;
 
-        $query = Order::with([ 'refundRequest', 'items'])
+        $query = Order::with(['refundRequest', 'items'])
             ->where('user_id', $userId);
 
         // Áp dụng bộ lọc theo status
@@ -295,7 +297,7 @@ class OrderClientController extends Controller
     public function show($id)
     {
         $user = auth('sanctum')->user();
-        $userId = $user->id ;
+        $userId = $user->id;
 
         $order = Order::with([
             'items',
@@ -369,7 +371,7 @@ class OrderClientController extends Controller
     public function cancel(Request $request, $id)
     {
         $user = auth('sanctum')->user();
-        $userId = $user->id ;
+        $userId = $user->id;
 
         $request->validate([
             'cancel_reason' => 'required|string|max:255',
@@ -419,7 +421,7 @@ class OrderClientController extends Controller
     public function retryPayment($id)
     {
         $user = auth('sanctum')->user();
-        $userId = $user->id ;
+        $userId = $user->id;
 
         $order = Order::where('user_id', $userId)
             ->where('payment_method', 'vnpay')
@@ -448,7 +450,7 @@ class OrderClientController extends Controller
     public function requestRefund(Request $request, $orderId)
     {
         $user = auth('sanctum')->user();
-        $userId = $user->id ;
+        $userId = $user->id;
 
         $request->validate([
             'type' => 'required|in:cancel_before_shipping,return_after_received',
@@ -506,7 +508,7 @@ class OrderClientController extends Controller
     public function complete($id)
     {
         $user = auth('sanctum')->user();
-        $userId = $user->id ;
+        $userId = $user->id;
 
         $order = Order::where('user_id', $userId)
             ->where('order_status_id', 4) // chỉ cho phép hoàn tất khi đã giao
@@ -517,7 +519,7 @@ class OrderClientController extends Controller
             ], 404);
         }
         $order->update([
-            'order_status_id' => 5, 
+            'order_status_id' => 5,
             'closed_at' => now()
         ]);
 

@@ -20,6 +20,12 @@ class AuthController extends Controller
         ]);
 
         $user = User::where('email', $request->email)->first();
+        if (!$user->is_active) {
+            return response()->json([
+                'message' => 'Tài khoản của bạn đã bị khóa',
+                'reason' => $user->inactive_reason,
+            ], 403);
+        }
 
         // Kiểm tra mật khẩu
         if (!$user || !Hash::check($request->password, $user->password)) {
@@ -91,8 +97,9 @@ class AuthController extends Controller
         }
     }
     //
-    public function profile(){
+    public function profile()
+    {
         $user = auth('sanctum')->user();
-        return response()->json($user,200);
+        return response()->json($user, 200);
     }
 }
