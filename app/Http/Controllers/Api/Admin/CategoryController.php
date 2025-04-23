@@ -14,7 +14,7 @@ class CategoryController extends Controller
         //
         try {
             //code...
-            $categories = Category::paginate(10);
+            $categories = Category::orderBy('created_at', 'desc')->paginate(10);
             return response()->json($categories, 200);
         } catch (\Throwable $th) {
             //throw $th;

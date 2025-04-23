@@ -16,7 +16,7 @@ class SizeController extends Controller
         //
         try {
             //code...
-            $sizes = Size::paginate(10);
+            $sizes = Size::orderBy('created_at', 'desc')->paginate(10);
             return response()->json($sizes, 200);
         } catch (\Throwable $th) {
             //throw $th;

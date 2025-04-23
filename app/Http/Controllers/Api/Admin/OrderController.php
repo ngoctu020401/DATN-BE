@@ -20,7 +20,7 @@ class OrderController extends Controller
     //
     public function index()
     {
-        $orders = Order::with('status', 'paymentStatus')->paginate(20);
+        $orders = Order::with('status', 'paymentStatus')->orderBy('created_at', 'desc')->paginate(20);
         return response()->json($orders, 200);
     }
     public function show($id)

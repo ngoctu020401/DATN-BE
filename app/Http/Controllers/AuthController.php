@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
@@ -101,5 +102,66 @@ class AuthController extends Controller
     {
         $user = auth('sanctum')->user();
         return response()->json($user, 200);
+    }
+    public function updateProfile(Request $request)
+    {
+        $user = auth('sanctum')->user();
+        $user = User::findOrFail($user->id);
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|string|max:255',
+            'avatar' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+        ]);
+
+        // Xử lý avatar mới nếu có
+        if ($request->hasFile('avatar')) {
+            if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+                Storage::disk('public')->delete($user->avatar);
+            }
+
+            $avatar = $request->file('avatar');
+            $filename = 'avatar_' . time() . '.' . $avatar->getClientOriginalExtension();
+            $path = $avatar->storeAs('uploads', $filename, 'public');
+
+            $data['avatar'] = $path;
+        }
+
+        $user->update($data);
+
+        return response()->json([
+            'message' => 'Cập nhật thông tin thành công.',
+            'user' => $user->fresh(),
+        ]);
+    }
+    //
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required',
+            'new_password' => 'required|string|min:6|confirmed',
+        ], [
+            'new_password.confirmed' => 'Xác nhận mật khẩu không khớp.',
+        ]);
+
+        // Ép kiểu về model
+        $user = auth('sanctum')->user();
+        $user = User::findOrFail($user->id);
+
+        // So sánh mật khẩu cũ
+        if (!Hash::check($request->current_password, $user->password)) {
+            return response()->json([
+                'message' => 'Mật khẩu hiện tại không đúng.'
+            ], 422);
+        }
+
+        // Cập nhật mật khẩu mới
+        $user->update([
+            'password' => Hash::make($request->new_password),
+        ]);
+
+        return response()->json([
+            'message' => 'Đổi mật khẩu thành công.'
+        ]);
     }
 }

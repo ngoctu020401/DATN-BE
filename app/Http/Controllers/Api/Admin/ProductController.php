@@ -17,24 +17,24 @@ class ProductController extends Controller
     //
     public function index()
     {
-        //
         try {
-            //code...
+            // Lấy danh sách sản phẩm kèm thông tin danh mục, phân trang 10 sản phẩm/trang
             $produtcs = Product::with('category')->paginate(10);
             return response()->json($produtcs, 200);
         } catch (\Throwable $th) {
-            //throw $th;
+            // Trả về lỗi nếu có exception
             return response()->json([
                 'message' => 'Lỗi',
                 'errors' => $th->getMessage()
             ], 500);
         }
     }
+    
     //
     public function store(Request $request)
     {
         try {
-
+            // Validate đầu vào
             $data = $request->validate([
                 'name' => 'required|string|max:255',
                 'description' => 'nullable|string',
@@ -49,12 +49,12 @@ class ProductController extends Controller
             ], [
                 'sale_price.lt' => 'Giá khuyến mãi phải nhỏ hơn giá gốc.',
             ]);
-
-            // Lưu ảnh chính với tên duy nhất
+    
+            // Lưu ảnh chính
             $mainImage = $request->file('main_image');
             $mainImageName = 'main_' . time() . '_' . Str::uuid() . '.' . $mainImage->getClientOriginalExtension();
             $mainImagePath = $mainImage->storeAs('uploads', $mainImageName, 'public');
-
+    
             // Tạo sản phẩm
             $product = Product::create([
                 'name' => $data['name'],
@@ -63,8 +63,8 @@ class ProductController extends Controller
                 'category_id' => $data['category_id'] ?? 1,
                 'is_active' => true,
             ]);
-
-            // Lưu biến thể
+    
+            // Thêm biến thể đầu tiên
             ProductVariation::create([
                 'product_id' => $product->id,
                 'color_id' => $data['color_id'],
@@ -73,20 +73,20 @@ class ProductController extends Controller
                 'sale_price' => $data['sale_price'] ?? null,
                 'stock_quantity' => $data['stock_quantity'] ?? 0,
             ]);
-
-            // Lưu các ảnh phụ nếu có
+    
+            // Lưu các ảnh phụ (nếu có)
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $image) {
                     $imageName = 'gallery_' . time() . '_' . Str::uuid() . '.' . $image->getClientOriginalExtension();
                     $imagePath = $image->storeAs('uploads', $imageName, 'public');
-
+    
                     ProductImage::create([
                         'product_id' => $product->id,
                         'url' => $imagePath,
                     ]);
                 }
             }
-
+    
             return response()->json([
                 'message' => 'Thêm sản phẩm thành công',
                 'product' => $product
@@ -98,6 +98,7 @@ class ProductController extends Controller
             ], 500);
         }
     }
+    
     //
     public function show($id)
     {
@@ -124,35 +125,33 @@ class ProductController extends Controller
     {
         try {
             $product = Product::with(['images', 'variations'])->findOrFail($id);
-
+    
             $data = $request->validate([
                 'name' => 'required|string|max:255',
                 'description' => 'nullable|string',
                 'main_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
                 'category_id' => 'nullable|exists:categories,id',
-
-
             ]);
-
-            //  Cập nhật ảnh chính nếu có
+    
+            // Cập nhật ảnh chính nếu có
             if ($request->hasFile('main_image')) {
                 if ($product->main_image && Storage::disk('public')->exists($product->main_image)) {
                     Storage::disk('public')->delete($product->main_image);
                 }
-
+    
                 $mainImage = $request->file('main_image');
                 $mainImageName = 'main_' . time() . '_' . Str::uuid() . '.' . $mainImage->getClientOriginalExtension();
                 $mainImagePath = $mainImage->storeAs('uploads', $mainImageName, 'public');
                 $product->main_image = $mainImagePath;
             }
-
-            //  Cập nhật thông tin chung
+    
+            // Cập nhật thông tin sản phẩm
             $product->update([
                 'name' => $data['name'],
                 'description' => $data['description'] ?? null,
                 'category_id' => $data['category_id'] ?? $product->category_id,
             ]);
-
+    
             return response()->json([
                 'message' => 'Cập nhật sản phẩm thành công',
                 'product' => $product->fresh(['images', 'variations'])
@@ -164,6 +163,7 @@ class ProductController extends Controller
             ], 500);
         }
     }
+    
     //
 
     public function updateVariation(Request $request, $id)
@@ -273,31 +273,30 @@ class ProductController extends Controller
         try {
             //  Tìm biến thể theo ID, nếu không có sẽ tự throw 404
             $variation = ProductVariation::findOrFail($id);
-    
+
             //  Các trạng thái đơn hàng được xem là "đã hoàn tất", không ảnh hưởng tới việc xóa biến thể
             $orderStatusExcludes = [5, 6, 8]; // 5: Hoàn thành, 6: Đã huỷ, 8: Hoàn tiền thành công
-    
+
             //  Kiểm tra xem biến thể này có nằm trong đơn hàng nào chưa hoàn tất không
             $inActiveOrder = OrderItem::where('variation_id', $id)
                 ->whereHas('order', function ($query) use ($orderStatusExcludes) {
                     $query->whereNotIn('order_status_id', $orderStatusExcludes);
                 })
                 ->exists();
-    
+
             //  Nếu biến thể đang được dùng trong đơn hàng đang xử lý → không cho xóa
             if ($inActiveOrder) {
                 return response()->json([
                     'message' => 'Không thể xoá biến thể vì đang được sử dụng trong đơn hàng đang xử lý.',
                 ], 422);
             }
-    
+
             //  Không bị ràng buộc → tiến hành xóa (soft delete)
             $variation->delete();
-    
+
             return response()->json([
                 'message' => 'Xoá biến thể thành công',
             ], 200);
-    
         } catch (\Throwable $th) {
             //  Lỗi bất ngờ → trả về thông báo lỗi
             return response()->json([
@@ -306,19 +305,20 @@ class ProductController extends Controller
             ], 500);
         }
     }
-    
+
     //
     public function deleteImage($id)
     {
         try {
             $image = ProductImage::findOrFail($id);
-
+    
+            // Xoá file vật lý nếu tồn tại
             if ($image->url && Storage::disk('public')->exists($image->url)) {
                 Storage::disk('public')->delete($image->url);
             }
-
-            $image->delete();
-
+    
+            $image->forceDelete(); // Xoá record DB
+    
             return response()->json([
                 'message' => 'Xoá ảnh thành công'
             ]);
@@ -329,15 +329,46 @@ class ProductController extends Controller
             ], 500);
         }
     }
+    
 
     //
     public function destroy($id)
     {
-        $product = Product::findOrFail($id);
-        $product->delete(); // soft delete 
+        $product = Product::with(['variations', 'images'])->findOrFail($id);
+
+        // ⚠️ Trạng thái đơn hàng được xem là đã xong
+        $excludedStatuses = [5, 6, 8];
+
+        // 🔍 Kiểm tra từng biến thể xem có nằm trong đơn hàng đang xử lý không
+        foreach ($product->variations as $variation) {
+            $inActiveOrder = OrderItem::where('variation_id', $variation->id)
+                ->whereHas('order', function ($query) use ($excludedStatuses) {
+                    $query->whereNotIn('order_status_id', $excludedStatuses);
+                })
+                ->exists();
+
+            if ($inActiveOrder) {
+                return response()->json([
+                    'message' => 'Không thể xoá sản phẩm vì có biến thể đang được sử dụng trong đơn hàng đang xử lý.',
+                ], 422);
+            }
+        }
+
+        // Nếu qua được kiểm tra thì cho xoá
+        $product->delete(); // Soft delete sản phẩm
+
+        // Soft delete ảnh
+        foreach ($product->images as $image) {
+            $image->delete(); // XÓa mềm
+        }
+
+        // Soft delete biến thể (nếu model có use SoftDeletes)
+        foreach ($product->variations as $variation) {
+            $variation->delete();
+        }
 
         return response()->json([
-            'message' => 'Xoá sản phẩm thành công'
+            'message' => 'Xoá sản phẩm thành công',
         ]);
     }
 }

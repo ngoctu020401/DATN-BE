@@ -15,7 +15,7 @@ class ColorController extends Controller
         //
         try {
             //code...
-            $colors = Color::paginate(10); // phân trang 10 color / 1 trang
+            $colors = Color::orderBy('created_at', 'desc')->paginate(10); // phân trang 10 color / 1 trang
             return response()->json($colors, 200);
         } catch (\Throwable $th) {
             //throw $th;
