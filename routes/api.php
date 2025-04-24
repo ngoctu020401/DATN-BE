@@ -28,6 +28,8 @@ use Illuminate\Support\Facades\Route;
 Route::post('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/signup', [AuthController::class, 'signup']);
 Route::get('/profile', [AuthController::class, 'profile']);
+Route::put('/user/profile', [UserController::class, 'updateProfile']);
+Route::post('/user/change-password', [UserController::class, 'changePassword']);
 //  Sản phẩm mới
 Route::get('/new-products', [HomeController::class, 'newProdutcs']);
 

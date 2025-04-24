@@ -35,14 +35,20 @@ class OrderController extends Controller
 
         return response()->json([
             'id' => $order->id,
+            'user_id' => $order->user_id,
             'order_code' => $order->order_code,
-            'name' => $order->name,
-            'phone' => $order->phone,
             'email' => $order->email,
+            'phone' => $order->phone,
+            'name' => $order->name,
             'address' => $order->address,
             'note' => $order->note,
-            'refund'=>$order->refundRequest,
-            'payment'=>$order->paymentOnlines,
+            'cancel_reason' => $order->cancel_reason,
+            'total_amount' => $order->total_amount,
+            'shipping' => $order->shipping,
+            'final_amount' => $order->final_amount,
+            'payment_url' => $order->payment_url,
+            'payment_method' => $order->payment_method,
+            'refund' => $order->refundRequest,
             'status' => [
                 'id' => $order->status->id ?? null,
                 'name' => $order->status->name ?? 'Không xác định',
@@ -84,48 +90,72 @@ class OrderController extends Controller
     //
     public function changeStatus(Request $request, $orderId)
     {
+        //  Validate dữ liệu đầu vào
         $data = $request->validate([
             'new_status_id' => 'required|exists:order_statuses,id',
             'cancel_reason' => 'nullable|string|max:255',
         ]);
-
+    
+        //  Lấy đơn hàng
         $order = Order::findOrFail($orderId);
-        $nowStatusId = $order->order_status_id; // status id hiện tại
+        $nowStatusId = $order->order_status_id;
         $newStatusId = $data['new_status_id'];
-
-        // Lấy next_status từ bảng order_statuses
+    
+        //  Lấy danh sách trạng thái kế tiếp được phép từ bảng order_statuses
         $currentStatus = OrderStatus::find($nowStatusId);
         $allowedNextStatus = json_decode($currentStatus->next_status, true);
-
+    
+        //  Nếu trạng thái mới không nằm trong danh sách được phép → báo lỗi
         if (!in_array($newStatusId, $allowedNextStatus)) {
             return response()->json([
                 'message' => 'Trạng thái không hợp lệ để chuyển tiếp từ trạng thái hiện tại.',
             ], 422);
         }
-
-        // Nếu là trạng thái "Đã huỷ" thì bắt buộc phải có lý do
+    
+        //  Nếu chuyển sang trạng thái "Đã huỷ" thì bắt buộc phải có lý do
         if ($newStatusId == 6 && !$data['cancel_reason']) {
             return response()->json([
                 'message' => 'Vui lòng nhập lý do huỷ đơn hàng.',
             ], 422);
         }
-
-        // Cập nhật trạng thái + lý do huỷ 
+    
+        //  Nếu đơn hàng dùng VNPAY mà chưa thanh toán thì không cho chuyển sang "Đã xác nhận"
+        if ($newStatusId == 2 && $order->payment_method == 'vnpay' && $order->payment_status_id == 1) {
+            return response()->json([
+                'message' => 'Đơn hàng chưa thanh toán',
+            ], 422);
+        }
+    
+        //  Ngăn chuyển thẳng sang "Hoàn tất" (5) hoặc "Yêu cầu hoàn tiền" (7) vì admin không có quyền này
+        if (in_array($newStatusId, [5, 7])) {
+            return response()->json([
+                'message' => 'Không thể chuyển trạng thái không đúng luồng',
+            ], 422);
+        }
+    
+        //  Nếu giao hàng thành công (trạng thái 4) & phương thức thanh toán là COD → cập nhật là đã thanh toán
+        if ($newStatusId == 4 && $order->payment_method == 'cod') {
+            $order->payment_status_id = 2; //  Ghi nhớ: dùng "=" chứ không phải "=="
+        }
+    
+        //  Cập nhật trạng thái mới và lý do huỷ (nếu có)
         $order->order_status_id = $newStatusId;
         $order->cancel_reason = $newStatusId == 6 ? $data['cancel_reason'] : null;
         $order->save();
-
-        // Ghi lịch sử trạng thái
+    
+        //  Ghi vào bảng lịch sử trạng thái
         OrderHistory::create([
             'order_id' => $order->id,
             'order_status_id' => $newStatusId,
         ]);
-
+    
+        //  Trả về phản hồi
         return response()->json([
             'message' => 'Cập nhật trạng thái thành công.',
             'new_status' => $order->status->name ?? null,
         ]);
     }
+    
     /**
      * Admin duyệt yêu cầu hoàn tiền
      */
@@ -195,7 +225,10 @@ class OrderController extends Controller
 
         // Đồng thời cập nhật trạng thái đơn hàng nếu cần
         $refund->order->update(['order_status_id' => 8, 'payment_status_id' => 3]); // 8 = Hoàn tiền thành công
-
+        OrderHistory::create([
+            'order_id' => $refund->order->id,
+            'order_status_id' => 8,
+        ]);
         return response()->json([
             'message' => 'Đã xác nhận hoàn tiền thành công.',
         ]);

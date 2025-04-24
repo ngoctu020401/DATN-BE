@@ -11,20 +11,22 @@ class Order extends Model
     protected $fillable = [
         'user_id',
         'order_code',
-        'total_amount',
-        'final_amount',
-        'payment_method',
-        'address',
-        'name',
-        'phone',
         'email',
+        'phone',
+        'name',
+        'address',
         'note',
+        'cancel_reason',
+        'total_amount',
+        'shipping',
+        'final_amount',
+        'payment_url',
+        'payment_method',
         'order_status_id',
         'payment_status_id',
-        'shipping',
-        'payment_url'
+        'closed_at',
     ];
-
+    
     // Relationships
     public function items()
     {

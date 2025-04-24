@@ -52,7 +52,11 @@ class OrderClientController extends Controller
                     'message' => "Sản phẩm {$item->variation->name} không đủ hàng tồn."
                 ], 400);
             }
-            $totalAmount += $item->quantity * $item->variation->price;
+            $price = ($item->variation->sale_price !== null && $item->variation->sale_price > 0)
+                ? $item->variation->sale_price
+                : $item->variation->price;
+
+            $totalAmount += $item->quantity * $price;
         }
 
         DB::beginTransaction();
@@ -61,7 +65,7 @@ class OrderClientController extends Controller
                 'user_id' => $userId,
                 'order_code' => 'ORD' . time(),
                 'total_amount' => $totalAmount,
-                'final_amount' => $totalAmount, // có thể trừ giảm giá sau
+                'final_amount' => $totalAmount + 30000, // có thể trừ giảm giá sau(Mặc đinh ship = 30000)
                 'payment_method' => $paymentMethod,
                 'address' => $request->shipping_address,
                 'name' => $request->shipping_name,
@@ -356,15 +360,24 @@ class OrderClientController extends Controller
             // Yêu cầu hoàn tiền nếu có
             'refund_request' => $refund ? [
                 'id' => $refund->id,
+                'order_id' => $refund->order_id,
+                'user_id' => $refund->user_id,
                 'type' => $refund->type,
                 'amount' => $refund->amount,
                 'reason' => $refund->reason,
+                'images' => $refund->images, // Trả về array
                 'status' => $refund->status,
-                'reject_reason' => $refund->status === 'rejected' ? $refund->reject_reason : null,
-                'approved_at' => $refund->approved_at?->format('d-m-Y H:i'),
-                'refunded_at' => $refund->refunded_at?->format('d-m-Y H:i'),
-                'proof_image_url' => $refund->refund_proof_image ? asset('storage/' . $refund->refund_proof_image) : null,
+                'reject_reason' => $refund->reject_reason,
+                'bank_name' => $refund->bank_name,
+                'bank_account_name' => $refund->bank_account_name,
+                'bank_account_number' => $refund->bank_account_number,
+                'approved_at' => optional($refund->approved_at)->format('d-m-Y H:i'),
+                'refunded_at' => optional($refund->refunded_at)->format('d-m-Y H:i'),
+                'proof_image_url' => $refund->refund_proof_image
+                    ? asset('storage/' . $refund->refund_proof_image)
+                    : null,
             ] : null,
+
         ]);
     }
 
@@ -453,8 +466,6 @@ class OrderClientController extends Controller
         $userId = $user->id;
 
         $request->validate([
-            'type' => 'required|in:cancel_before_shipping,return_after_received',
-            'amount' => 'required|numeric|min:0',
             'reason' => 'required|string|max:255',
             'bank_name' => 'required|string|max:100',
             'bank_account_name' => 'required|string|max:100',
@@ -489,8 +500,8 @@ class OrderClientController extends Controller
         RefundRequest::create([
             'order_id' => $order->id,
             'user_id' => $userId,
-            'type' => $request->type,
-            'amount' => $request->amount,
+            'type' => 'return_after_received',
+            'amount' => $order->final_amount,
             'reason' => $request->reason,
             'images' => $imagePaths,
             'status' => 'pending',
@@ -498,7 +509,7 @@ class OrderClientController extends Controller
             'bank_account_name' => $request->bank_account_name,
             'bank_account_number' => $request->bank_account_number,
         ]);
-
+        $order->update(['order_status_id' => 7]);
         return response()->json([
             'message' => 'Đã gửi yêu cầu hoàn tiền thành công.',
         ]);
