@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendOrderConfirmationMail;
 use App\Models\CartItem;
 use App\Models\Order;
 use App\Models\OrderHistory;
@@ -107,7 +108,7 @@ class OrderClientController extends Controller
                 ]
             );
             DB::commit();
-
+            SendOrderConfirmationMail::dispatch($order);
             return response()->json([
                 'message' => 'Tạo đơn hàng thành công',
                 'order_code' => $order->order_code,
