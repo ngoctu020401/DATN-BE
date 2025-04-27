@@ -52,8 +52,8 @@ class ProductController extends Controller
     
             // Lưu ảnh chính
             $mainImage = $request->file('main_image');
-            $mainImageName = 'main_' . time() . '_' . Str::uuid() . '.' . $mainImage->getClientOriginalExtension();
-            $mainImagePath = $mainImage->storeAs('uploads', $mainImageName, 'public');
+            $mainImageName = 'main_' . time() . '_' . Str::uuid() . '.' . $mainImage->getClientOriginalExtension();// lưu ảnh vào public
+            $mainImagePath = $mainImage->storeAs('uploads', $mainImageName, 'public'); // lấy ra link ảnh 
     
             // Tạo sản phẩm
             $product = Product::create([
@@ -75,7 +75,7 @@ class ProductController extends Controller
             ]);
     
             // Lưu các ảnh phụ (nếu có)
-            if ($request->hasFile('images')) {
+            if ($request->hasFile('images')) { 
                 foreach ($request->file('images') as $image) {
                     $imageName = 'gallery_' . time() . '_' . Str::uuid() . '.' . $image->getClientOriginalExtension();
                     $imagePath = $image->storeAs('uploads', $imageName, 'public');
@@ -105,14 +105,14 @@ class ProductController extends Controller
         $product = Product::find($id);
         if (!$product) {
             return response()->json([
-                'message' => 'Không tìm thấy màu sắc'
+                'message' => 'Không tìm thấy sản phẩm'
             ], 500);
         }
         return response()->json($product, 200);
     }
-    public function getVariants($id)
+    public function getVariants($id) // id product
     {
-        $variations = ProductVariation::where('product_id', $id)->with(['color', 'size'])->paginate(10);
+        $variations = ProductVariation::where('product_id', $id)->with(['color', 'size'])->paginate(10); //tìm tất cả các biến thẻ có trong sản phẩm đó vagf in ra
         return response()->json($variations, 200);
     }
     public function getImages($id)
@@ -120,7 +120,7 @@ class ProductController extends Controller
         $variations = ProductImage::where('product_id', $id)->paginate(10);
         return response()->json($variations, 200);
     }
-    //
+    // Update sản phẩm
     public function update(Request $request, $id)
     {
         try {
@@ -131,14 +131,10 @@ class ProductController extends Controller
                 'description' => 'nullable|string',
                 'main_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
                 'category_id' => 'nullable|exists:categories,id',
-            ]);
+            ]); 
     
             // Cập nhật ảnh chính nếu có
             if ($request->hasFile('main_image')) {
-                if ($product->main_image && Storage::disk('public')->exists($product->main_image)) {
-                    Storage::disk('public')->delete($product->main_image);
-                }
-    
                 $mainImage = $request->file('main_image');
                 $mainImageName = 'main_' . time() . '_' . Str::uuid() . '.' . $mainImage->getClientOriginalExtension();
                 $mainImagePath = $mainImage->storeAs('uploads', $mainImageName, 'public');
@@ -164,7 +160,7 @@ class ProductController extends Controller
         }
     }
     
-    //
+    // Sửa biến thể 
 
     public function updateVariation(Request $request, $id)
     {
@@ -245,9 +241,9 @@ class ProductController extends Controller
         $exists = ProductVariation::where('product_id', $data['product_id'])
             ->where('color_id', $data['color_id'])
             ->where('size_id', $data['size_id'])
-            ->exists();
+            ->exists(); // KIểm tra xem biến thể đã tồn tại hay chưa, nếu tồn tại trả về true
 
-        if ($exists) {
+        if ($exists) { // Nếu đã tồn tại báo lỗi
             return response()->json([
                 'message' => 'Biến thể với màu và size này đã tồn tại cho sản phẩm.',
             ], 422);
@@ -277,15 +273,15 @@ class ProductController extends Controller
             //  Các trạng thái đơn hàng được xem là "đã hoàn tất", không ảnh hưởng tới việc xóa biến thể
             $orderStatusExcludes = [5, 6, 8]; // 5: Hoàn thành, 6: Đã huỷ, 8: Hoàn tiền thành công
 
-            //  Kiểm tra xem biến thể này có nằm trong đơn hàng nào chưa hoàn tất không
+            //  Kiểm tra xem biến thể này có nằm trong đơn hàng nào chưa hoàn tất không *(// 5: Hoàn thành, 6: Đã huỷ, 8: Hoàn tiền thành công. Không phải 3 trạng thái này) // Các trạng thái khác ngoài 3 trạng thái
             $inActiveOrder = OrderItem::where('variation_id', $id)
-                ->whereHas('order', function ($query) use ($orderStatusExcludes) {
-                    $query->whereNotIn('order_status_id', $orderStatusExcludes);
+                ->whereHas('order', function ($query) use ($orderStatusExcludes) { // Kiểm tra order
+                    $query->whereNotIn('order_status_id', $orderStatusExcludes); // không nằm trong
                 })
-                ->exists();
+                ->exists(); // Nếu có thì trả về true, nghĩa là biến thể đó nằm trong 1 đơn hàng đang xử lí
 
             //  Nếu biến thể đang được dùng trong đơn hàng đang xử lý → không cho xóa
-            if ($inActiveOrder) {
+            if ($inActiveOrder) { // Nếu có thì không cho xóa
                 return response()->json([
                     'message' => 'Không thể xoá biến thể vì đang được sử dụng trong đơn hàng đang xử lý.',
                 ], 422);
@@ -334,41 +330,49 @@ class ProductController extends Controller
     //
     public function destroy($id)
     {
+        //  Lấy sản phẩm theo ID và load cả biến thể + hình ảnh liên quan
         $product = Product::with(['variations', 'images'])->findOrFail($id);
-
-        // ⚠️ Trạng thái đơn hàng được xem là đã xong
-        $excludedStatuses = [5, 6, 8];
-
-        // 🔍 Kiểm tra từng biến thể xem có nằm trong đơn hàng đang xử lý không
+    
+        //  Xác định các trạng thái đơn hàng được xem là đã hoàn tất hoặc không còn xử lý nữa
+        $excludedStatuses = [5, 6, 8]; // 5: Hoàn thành, 6: Đã huỷ, 8: Hoàn tiền thành công
+    
+        //  Duyệt qua từng biến thể của sản phẩm
         foreach ($product->variations as $variation) {
+            // Kiểm tra xem biến thể này có trong đơn hàng nào đang xử lý không
             $inActiveOrder = OrderItem::where('variation_id', $variation->id)
                 ->whereHas('order', function ($query) use ($excludedStatuses) {
+                    // Chỉ lấy những đơn hàng KHÔNG nằm trong trạng thái đã hoàn tất
                     $query->whereNotIn('order_status_id', $excludedStatuses);
                 })
-                ->exists();
-
+                ->exists(); // true nếu tìm thấy → biến thể đang được sử dụng
+    
+            // Nếu biến thể đang nằm trong đơn hàng đang xử lý → không cho xoá
             if ($inActiveOrder) {
                 return response()->json([
                     'message' => 'Không thể xoá sản phẩm vì có biến thể đang được sử dụng trong đơn hàng đang xử lý.',
-                ], 422);
+                ], 422); // Trả về lỗi 422 (Unprocessable Entity)
             }
         }
-
-        // Nếu qua được kiểm tra thì cho xoá
-        $product->delete(); // Soft delete sản phẩm
-
-        // Soft delete ảnh
+    
+        //  Nếu không có ràng buộc đơn hàng → tiến hành xoá
+    
+        //  Soft delete sản phẩm (đánh dấu deleted_at)
+        $product->delete();
+    
+        //  Soft delete toàn bộ ảnh sản phẩm
         foreach ($product->images as $image) {
-            $image->delete(); // XÓa mềm
+            $image->delete();
         }
-
-        // Soft delete biến thể (nếu model có use SoftDeletes)
+    
+        //  Soft delete toàn bộ biến thể sản phẩm
         foreach ($product->variations as $variation) {
             $variation->delete();
         }
-
+    
+        // Trả về phản hồi thành công
         return response()->json([
             'message' => 'Xoá sản phẩm thành công',
         ]);
     }
+    
 }

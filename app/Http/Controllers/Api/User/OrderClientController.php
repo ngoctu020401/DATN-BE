@@ -21,63 +21,76 @@ class OrderClientController extends Controller
 
     public function store(Request $request)
     {
+        //1: Validate dữ liệu đầu vào
         $request->validate([
-            'cart_item_ids' => 'required|array',
-            'cart_item_ids.*' => 'integer|exists:cart_items,id',
-            'payment_method' => 'required|in:cod,vnpay',
-            'shipping_address' => 'required|string',
-            'shipping_name' => 'required|string|max:255',
-            'shipping_phone' => 'required|string|max:20',
-            'shipping_email' => 'nullable|email',
-            'note' => 'nullable|string'
+            'cart_item_ids' => 'required|array',                  // Danh sách ID cart item phải là array
+            'cart_item_ids.*' => 'integer|exists:cart_items,id',   // Các ID trong array phải tồn tại trong bảng cart_items
+            'payment_method' => 'required|in:cod,vnpay',           // Chỉ chấp nhận COD hoặc VNPAY
+            'shipping_address' => 'required|string',              // Địa chỉ giao hàng
+            'shipping_name' => 'required|string|max:255',         // Tên người nhận
+            'shipping_phone' => 'required|string|max:20',         // Số điện thoại nhận hàng
+            'shipping_email' => 'nullable|email',                 // Email có thể có hoặc không
+            'note' => 'nullable|string'                           // Ghi chú đơn hàng
         ]);
-
+    
+        //2: Lấy thông tin user đang đăng nhập
         $user = auth('sanctum')->user();
         $userId = $user->id;
+    
+        //3: Lấy thông tin các cart item được chọn mua
         $cartItemIds = $request->cart_item_ids;
         $paymentMethod = $request->payment_method;
-
+    
         $cartItems = CartItem::with('variation')
             ->where('cart_id', $user->cart->id)
             ->whereIn('id', $cartItemIds)
             ->get();
-
+    
+        // Nếu không tìm thấy sản phẩm hợp lệ, trả lỗi
         if ($cartItems->isEmpty()) {
             return response()->json(['message' => 'Không tìm thấy sản phẩm hợp lệ trong giỏ hàng.'], 400);
         }
-
+    
+        //4: Tính tổng tiền đơn hàng, đồng thời kiểm tra tồn kho từng sản phẩm
         $totalAmount = 0;
         foreach ($cartItems as $item) {
+            // Nếu số lượng mua lớn hơn tồn kho, trả lỗi
             if ($item->quantity > $item->variation->stock_quantity) {
                 return response()->json([
                     'message' => "Sản phẩm {$item->variation->name} không đủ hàng tồn."
                 ], 400);
             }
+    
+            // Lấy giá ưu tiên giá khuyến mãi nếu có, không thì lấy giá gốc
             $price = ($item->variation->sale_price !== null && $item->variation->sale_price > 0)
                 ? $item->variation->sale_price
                 : $item->variation->price;
-
+    
+            // Cộng dồn tổng tiền
             $totalAmount += $item->quantity * $price;
         }
-
+    
+        //5: Bắt đầu transaction để đảm bảo toàn bộ các thao tác atomically
         DB::beginTransaction();
         try {
+            //6: Tạo đơn hàng mới
             $order = Order::create([
                 'user_id' => $userId,
-                'order_code' => 'ORD' . time(),
-                'total_amount' => $totalAmount,
-                'final_amount' => $totalAmount + 30000, // có thể trừ giảm giá sau(Mặc đinh ship = 30000)
+                'order_code' => 'ORD' . time(),   // Mã đơn hàng dựa trên timestamp
+                'total_amount' => $totalAmount,   // Tổng tiền đơn chưa ship
+                'final_amount' => $totalAmount + 30000, // Tổng thanh toán đã cộng phí ship (30k mặc định)
                 'payment_method' => $paymentMethod,
                 'address' => $request->shipping_address,
                 'name' => $request->shipping_name,
                 'phone' => $request->shipping_phone,
                 'email' => $request->shipping_email,
                 'note' => $request->note,
-                'order_status_id' => 1,
-                'payment_status_id' => 1,
-                'shipping' => 30000
+                'order_status_id' => 1,            // Mặc định trạng thái đơn hàng: Đang chờ xác nhận
+                'payment_status_id' => 1,          // Mặc định trạng thái thanh toán: Chưa thanh toán
+                'shipping' => 30000,               // Phí ship cố định
             ]);
-
+    
+            //7: Lưu từng sản phẩm trong đơn hàng và trừ tồn kho
             foreach ($cartItems as $item) {
                 OrderItem::create([
                     'order_id' => $order->id,
@@ -90,31 +103,38 @@ class OrderClientController extends Controller
                     'image' => $item->variation->product->main_image,
                     'variation' => $item->variation->getVariation()
                 ]);
-
+    
+                // Trừ số lượng tồn kho tương ứng
                 $item->variation->decrement('stock_quantity', $item->quantity);
             }
-
+    
+            //8: Nếu thanh toán qua VNPAY, tạo URL thanh toán và cập nhật vào đơn
             if ($paymentMethod === 'vnpay') {
-                $paymentUrl = $this->createPaymentUrl($order, 60);
+                $paymentUrl = $this->createPaymentUrl($order, 60); // Thời gian thanh toán: 60 phút
                 $order->update(['payment_url' => $paymentUrl]);
             }
-
-            // Xóa cart items đã đặt
+    
+            //9: Xóa những cart item đã thanh toán khỏi giỏ hàng
             CartItem::whereIn('id', $cartItemIds)->delete();
-            OrderHistory::create(
-                [
-                    'order_id' => $order->id,
-                    'order_status_id' => 1
-                ]
-            );
+    
+            //10: Ghi log lịch sử đơn hàng
+            OrderHistory::create([
+                'order_id' => $order->id,
+                'order_status_id' => 1
+            ]);
+    
+            //11: Commit transaction sau khi mọi thao tác thành công
             DB::commit();
-            SendOrderConfirmationMail::dispatch($order);
+    
+            //12: Trả về dữ liệu đơn hàng thành công cho client
             return response()->json([
                 'message' => 'Tạo đơn hàng thành công',
                 'order_code' => $order->order_code,
                 'payment_url' => $order->payment_url ?? null
             ], 201);
+    
         } catch (\Throwable $th) {
+            // Nếu có lỗi, rollback transaction và trả lỗi
             DB::rollBack();
             return response()->json([
                 'message' => 'Tạo đơn hàng thất bại',
@@ -122,6 +142,7 @@ class OrderClientController extends Controller
             ], 500);
         }
     }
+    
     //Xử lí thanh toán
     public function vnpayReturn(Request $request)
     {
@@ -403,7 +424,12 @@ class OrderClientController extends Controller
             'order_status_id' => 6,
             'cancel_reason' => $request->cancel_reason,
         ]);
-
+        // Cộng lại số lượng
+        foreach ($order->items as $item) {
+            if ($item->variation_id) {
+                $item->variation->increment('stock_quantity', $item->quantity);
+            }
+        }
         // Ghi lịch sử huỷ đơn
         OrderHistory::create([
             'order_id' => $order->id,

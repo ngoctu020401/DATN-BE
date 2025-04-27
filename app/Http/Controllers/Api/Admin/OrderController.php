@@ -95,67 +95,75 @@ class OrderController extends Controller
             'new_status_id' => 'required|exists:order_statuses,id',
             'cancel_reason' => 'nullable|string|max:255',
         ]);
-    
+
         //  Lấy đơn hàng
         $order = Order::findOrFail($orderId);
         $nowStatusId = $order->order_status_id;
         $newStatusId = $data['new_status_id'];
-    
+
         //  Lấy danh sách trạng thái kế tiếp được phép từ bảng order_statuses
         $currentStatus = OrderStatus::find($nowStatusId);
         $allowedNextStatus = json_decode($currentStatus->next_status, true);
-    
+
         //  Nếu trạng thái mới không nằm trong danh sách được phép → báo lỗi
         if (!in_array($newStatusId, $allowedNextStatus)) {
             return response()->json([
                 'message' => 'Trạng thái không hợp lệ để chuyển tiếp từ trạng thái hiện tại.',
             ], 422);
         }
-    
+
         //  Nếu chuyển sang trạng thái "Đã huỷ" thì bắt buộc phải có lý do
         if ($newStatusId == 6 && !$data['cancel_reason']) {
             return response()->json([
                 'message' => 'Vui lòng nhập lý do huỷ đơn hàng.',
             ], 422);
         }
-    
+        //Cộng lại số lượng 
+        if ($newStatusId == 6) {
+            foreach ($order->items as $item) {
+                if ($item->variation_id) { // Nếu có variation id thì mới cộng vào kho
+                    $item->variation->increment('stock_quantity', $item->quantity);
+                }
+            }
+        }
+
         //  Nếu đơn hàng dùng VNPAY mà chưa thanh toán thì không cho chuyển sang "Đã xác nhận"
         if ($newStatusId == 2 && $order->payment_method == 'vnpay' && $order->payment_status_id == 1) {
             return response()->json([
                 'message' => 'Đơn hàng chưa thanh toán',
             ], 422);
         }
-    
+
         //  Ngăn chuyển thẳng sang "Hoàn tất" (5) hoặc "Yêu cầu hoàn tiền" (7) vì admin không có quyền này
         if (in_array($newStatusId, [5, 7])) {
             return response()->json([
                 'message' => 'Không thể chuyển trạng thái không đúng luồng',
             ], 422);
         }
-    
+
         //  Nếu giao hàng thành công (trạng thái 4) & phương thức thanh toán là COD → cập nhật là đã thanh toán
         if ($newStatusId == 4 && $order->payment_method == 'cod') {
             $order->payment_status_id = 2; //  Ghi nhớ: dùng "=" chứ không phải "=="
         }
-    
+
         //  Cập nhật trạng thái mới và lý do huỷ (nếu có)
         $order->order_status_id = $newStatusId;
         $order->cancel_reason = $newStatusId == 6 ? $data['cancel_reason'] : null;
         $order->save();
-    
+
         //  Ghi vào bảng lịch sử trạng thái
         OrderHistory::create([
             'order_id' => $order->id,
             'order_status_id' => $newStatusId,
         ]);
-    
+
         //  Trả về phản hồi
         return response()->json([
             'message' => 'Cập nhật trạng thái thành công.',
             'new_status' => $order->status->name ?? null,
         ]);
     }
-    
+
     /**
      * Admin duyệt yêu cầu hoàn tiền
      */
@@ -203,7 +211,9 @@ class OrderController extends Controller
      */
     public function markAsRefunded(Request $request, $id)
     {
-        // Yêu cầu phải upload ảnh minh chứng (jpg/jpeg/png/pdf)
+        try {
+            //code...
+            // Yêu cầu phải upload ảnh minh chứng (jpg/jpeg/png/pdf)
         $request->validate([
             'refund_proof_image' => 'required|image|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
@@ -215,7 +225,12 @@ class OrderController extends Controller
         $file = $request->file('refund_proof_image');
         $filename = 'refund_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
         $path = $file->storeAs('uploads', $filename, 'public');
-
+        // Cộng lại kho hàng
+        foreach ($refund->order->items as $item) {
+            if ($item->variation_id) {
+                $item->variation->increment('stock_quantity', $item->quantity);
+            }
+        }
         // Cập nhật trạng thái "refunded", lưu ảnh và thời gian
         $refund->update([
             'status' => 'refunded',
@@ -232,5 +247,13 @@ class OrderController extends Controller
         return response()->json([
             'message' => 'Đã xác nhận hoàn tiền thành công.',
         ]);
-    }
+    
+        } catch (\Throwable $th) {
+            //throw $th;
+            return response()->json([
+                'message' => 'Lỗi',
+            ], 422);
+        }
+        
+}
 }

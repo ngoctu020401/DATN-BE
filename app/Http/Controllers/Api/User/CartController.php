@@ -16,7 +16,7 @@ class CartController extends Controller
     {
         $user = auth('sanctum')->user(); // Lấy ra người dùng được gửi lên = token
         $cart = $user->cart ?? null; // Lấy giỏ hàng của người dùng đó
-        if (!$cart) {
+        if (!$cart) { // Nếu không lấy được giỏ hàng thì trả về 
             return response()->json([
                 'items' => [],
                 'message' => 'Giỏ hàng trống'
@@ -26,7 +26,7 @@ class CartController extends Controller
             ->where('cart_id', $cart->id)
             ->get(); // Lấy ra  các item có trong giỏ hàng
 
-        return response()->json(['items' => $items]); // trả về dữ liệu
+        return response()->json(['items' => $items]); // trả về dữ liệu 
     }
 
     public function add(Request $request)
@@ -36,15 +36,15 @@ class CartController extends Controller
             'quantity' => 'required|integer|min:1',
         ]);
 
-        $user = auth('sanctum')->user();
-        $cart = $user->cart ?? null;
-        if(!$cart){
+        $user = auth('sanctum')->user(); // Lấy thông tin ng dùng từ token
+        $cart = $user->cart ?? null; // Kiểm tra xem ng dùng có giỏ hàng chưa
+        if(!$cart){ // Nếu chưa có thì tạo mới giỏ hàng
             $cart = Cart::create([
                 'user_id'=>$user->id
             ]);
         }
-        $variationId = (int) $request->input('variation_id');
-        $quantity = (int) $request->input('quantity');
+        $variationId = (int) $request->input('variation_id'); // Lấy ra variation_id
+        $quantity = (int) $request->input('quantity'); // Lấy ra số lượng được gửi lên
 
         $variant = ProductVariation::findOrFail($variationId);
 

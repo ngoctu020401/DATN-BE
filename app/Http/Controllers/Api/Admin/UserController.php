@@ -18,7 +18,7 @@ class UserController extends Controller
     {
         try {
             //code...
-            $size = User::paginate(10);
+            $size = User::paginate(10); // 
             return response()->json($size, 200);
         } catch (\Throwable $th) {
             //throw $th;

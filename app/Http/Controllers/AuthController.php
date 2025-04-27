@@ -20,24 +20,21 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        $user = User::where('email', $request->email)->first();
-        if (!$user->is_active) {
+        $user = User::where('email', $request->email)->first(); // Lấy ra bản ghi có email giống vs email đc gửi lên
+        if (!$user->is_active) { // Kiểm tra xem tài khoản có bị khóa hay không
             return response()->json([
                 'message' => 'Tài khoản của bạn đã bị khóa',
                 'reason' => $user->inactive_reason,
             ], 403);
         }
 
-        // Kiểm tra mật khẩu
+        // Kiểm tra mật khẩu có đúng hay không
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Email hoặc mật khẩu không chính xác!'], 401);
         }
 
         // Xóa token cũ nếu người dùng đăng nhập lại (tránh trùng lặp token)
         $user->tokens()->delete();
-
-        // Nếu chọn "Remember Me", token sẽ có thời gian sống dài hơn
-        $tokenExpiration = $request->remember ? now()->addWeeks(2) : now()->addHours(2);
 
         // Tạo token đăng nhập
         $token = $user->createToken('auth_token')->plainTextToken;

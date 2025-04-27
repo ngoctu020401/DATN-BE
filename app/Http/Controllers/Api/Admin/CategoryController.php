@@ -14,7 +14,7 @@ class CategoryController extends Controller
         //
         try {
             //code...
-            $categories = Category::orderBy('created_at', 'desc')->paginate(10);
+            $categories = Category::orderBy('created_at', 'desc')->paginate(10); // Lấy ra 10 bản ghi mới nhất có phân trang
             return response()->json($categories, 200);
         } catch (\Throwable $th) {
             //throw $th;
@@ -32,7 +32,7 @@ class CategoryController extends Controller
         try {
             //code...
             $data = $request->validate([
-                'name' => 'required|string'
+                'name' => 'required|string' // Khi người dùng gửi thông tin lên thì validate để đảm bảo ng dùng gửi đúng thông tin hệ thống cần
             ]);
             $category = Category::create($data);
             return response()->json([
@@ -54,12 +54,13 @@ class CategoryController extends Controller
         //
         try {
             //code...
-            $category = Category::find($id);
-            if (!$category) {
+            $category = Category::find($id); // Tìm danh mục theo ID của nó
+            if (!$category) { // Nếu không có danh mục
                 return response()->json([
                     'message' => 'Không tìm thấy danh mục'
                 ], 500);
             }
+            // Nếu có trả category
             return response()->json($category, 200);
         } catch (\Throwable $th) {
             //throw $th;
@@ -76,7 +77,7 @@ class CategoryController extends Controller
         try {
             //code...
             $data = $request->validate([
-                'name' => 'required|string'
+                'name' => 'required|string' 
             ]);
             $category = Category::find($id);
             if (!$category) {
@@ -86,7 +87,7 @@ class CategoryController extends Controller
             }
             $category->update($data);
             return response()->json([
-                'message' => 'Bạn đã thêm danh mục thành công',
+                'message' => 'Bạn đã sửa danh mục thành công',
                 'data' => $category
             ], 200);
         } catch (\Throwable $th) {
@@ -103,7 +104,7 @@ class CategoryController extends Controller
     {
         try {
             //code...
-            $category = Category::findOrFail($id);
+            $category = Category::findOrFail($id); // Nếu không tìm thấy tự báo lỗi
 
             // Nếu đang cố xoá chính "Chưa phân loại" thì không cho
             if ($category->id == 1) {
@@ -111,7 +112,7 @@ class CategoryController extends Controller
             }
 
             // Cập nhật tất cả sản phẩm về danh mục mặc định
-            $category->products()->update(['category_id' => 1]);
+            $category->products()->update(['category_id' => 1]); // danh mục chưa phân loại
 
             // Xoá danh mục
             $category->delete();

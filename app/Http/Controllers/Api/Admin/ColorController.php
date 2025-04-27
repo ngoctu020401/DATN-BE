@@ -104,15 +104,15 @@ class ColorController extends Controller
     {
         try {
             //code...
-            $color = Color::findOrFail($id);
+            $color = Color::find($id); 
             if (!$color) {
                 return response()->json([
                     'message' => 'Không tìm thấy màu sắc'
                 ], 500);
             }
             // Kiểm tra xem có biến thể nào đang dùng màu sắc này không, nếu có thì không cho xóa
-            $usedInVariations = ProductVariation::where('color_id', $id)->exists();
-            if ($usedInVariations) {
+            $usedInVariations = ProductVariation::where('color_id', $id)->exists(); // Trả về true nếu có, false nếu không có
+            if ($usedInVariations) { // Kiểm tra xem có biến thể nào đang sử dụng màu sắc này hay không, nếu có thì không cho xóa
                 return response()->json([
                     'message' => 'Không thể xoá màu sắc vì đang được sử dụng trong sản phẩm!',
                 ], 400);
