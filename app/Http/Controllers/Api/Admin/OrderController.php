@@ -88,7 +88,7 @@ class OrderController extends Controller
             'updated_at' => $order->updated_at->format('d-m-Y H:i'),
         ], 200);
     }
-    //
+//
     public function changeStatus(Request $request, $orderId)
     {
         //  Validate dữ liệu đầu vào
@@ -107,8 +107,8 @@ class OrderController extends Controller
         $allowedNextStatus = json_decode($currentStatus->next_status, true);
 
         //  Nếu trạng thái mới không nằm trong danh sách được phép → báo lỗi
-        if (!in_array($newStatusId, $allowedNextStatus)) {
-            return response()->json([
+        if (!in_array($newStatusId, $allowedNextStatus)) { // inarray hoạt động theo kiểu kiểm tra xem giá trị truyền vào có = giá trị nào trong mảng hay không
+            return response()->json([ // (3,[3])
                 'message' => 'Trạng thái không hợp lệ để chuyển tiếp từ trạng thái hiện tại.',
             ], 422);
         }
@@ -138,7 +138,7 @@ class OrderController extends Controller
             ], 422);
         }
 
-        //  Ngăn chuyển thẳng sang "Hoàn tất" (5) hoặc "Yêu cầu hoàn tiền" (7) vì admin không có quyền này
+        //  Ngăn chuyển thẳng từ Đã giao sang "Hoàn tất" (5) hoặc "Yêu cầu hoàn tiền" (7) vì admin không có quyền này
         if (in_array($newStatusId, [5, 7])) {
             return response()->json([
                 'message' => 'Không thể chuyển trạng thái không đúng luồng',
@@ -230,7 +230,7 @@ class OrderController extends Controller
         $filename = 'refund_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
         $path = $file->storeAs('uploads', $filename, 'public');
         // Cộng lại kho hàng
-        if($refund->type != 'cancel_before_shipping'){
+        if($refund->type == 'return_after_received'){ // nẾU ĐƠN HÀNG LÀ HOÀN TRẢ SAU KHI GIAO
             foreach ($refund->order->items as $item) {
                 if ($item->variation_id) {
                     $variant = ProductVariation::find($item->variation_id);

@@ -13,7 +13,6 @@ use App\Models\ProductVariation;
 use App\Models\RefundRequest;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -48,7 +47,7 @@ class OrderClientController extends Controller
             ->get();
 
         // Nếu không tìm thấy sản phẩm hợp lệ, trả lỗi
-        if ($cartItems->isEmpty()) {
+        if ($cartItems->isEmpty()) { // Nếu trống trả về true
             return response()->json(['message' => 'Không tìm thấy sản phẩm hợp lệ trong giỏ hàng.'], 400);
         }
 
@@ -111,7 +110,7 @@ class OrderClientController extends Controller
 
             //8: Nếu thanh toán qua VNPAY, tạo URL thanh toán và cập nhật vào đơn
             if ($paymentMethod === 'vnpay') {
-                $paymentUrl = $this->createPaymentUrl($order, 60); // Thời gian thanh toán: 60 phút
+                $paymentUrl = $this->createPaymentUrl($order);
                 $order->update(['payment_url' => $paymentUrl]);
             }
 
@@ -143,7 +142,7 @@ class OrderClientController extends Controller
         }
     }
 
-    //Xử lí thanh toán
+    //Xử lí thanh toán thành công hay thất bại
     public function vnpayReturn(Request $request)
     {
 
@@ -160,6 +159,7 @@ class OrderClientController extends Controller
             'vnp_card_type' => $request->input('vnp_CardType'),
             'vnp_response_code' => $request->input('vnp_ResponseCode'),
         ]);
+        // Kiểm tra xem có đúng khóa bảo mật khônbg
         $inputData = array();
         foreach ($_GET as $key => $value) {
             if (substr($key, 0, 4) == "vnp_") {
@@ -182,8 +182,8 @@ class OrderClientController extends Controller
 
         $secureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
 
-        if ($secureHash === $vnp_SecureHash) {
-            if ($request['vnp_ResponseCode'] == '00') {
+        if ($secureHash === $vnp_SecureHash) { ////Nếu Khóa bảo mật đúng
+            if ($request['vnp_ResponseCode'] == '00') { // Nếu mã respon == 00 nghĩa là thanh toán thanh công
                 // Giao dịch thành công, cập nhật trạng thái đơn hàng
 
                 if ($order) {
@@ -194,7 +194,7 @@ class OrderClientController extends Controller
                     'success' => true,
                     'message' => 'Thanh toán thành công',
                 ]);
-            } else {
+            } else { // Thông báo thất bại
                 return response()->json([
                     'success' => false,
                     'message' => 'Thanh toán thất bại',
@@ -203,18 +203,18 @@ class OrderClientController extends Controller
         }
     }
     //Thanh toán online
-    public function createPaymentUrl($order, $expireInMinutes)
+    public function createPaymentUrl($order)
     {
         //Khai báo biến
-        $vnp_TmnCode = 'OFRCXR48';
-        $vnp_ReturnUrl = 'http://localhost:5173/thanks';
-        $vnp_Url = 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
-        $vnp_HashSecret = 'XBB6GOAPO5O5ARJ5FF2JU658OGNMIQWZ';
+        $vnp_TmnCode = 'OFRCXR48'; //đc cung cấp bởi vnpay
+        $vnp_ReturnUrl = 'http://localhost:5173/thanks'; // trang trả về kết quả khi thanh toán
+        $vnp_Url = 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'; // đc cung cấp bởi vnpay để thanh toán
+        $vnp_HashSecret = 'XBB6GOAPO5O5ARJ5FF2JU658OGNMIQWZ'; // đc cung cấp bởi vnpay
         //
-        $vnp_TxnRef = $order->order_code;
-        $vnp_OrderInfo = "Thanh toán hóa đơn " . $order->order_code;
+        $vnp_TxnRef = $order->order_code; // mã đơn hagf
+        $vnp_OrderInfo = "Thanh toán hóa đơn " . $order->order_code; // ghi chú
         $vnp_OrderType = "100002";
-        $vnp_Amount = $order->final_amount * 100;
+        $vnp_Amount = $order->final_amount * 100; // tổng tiền đơn hàng 
         $vnp_Locale = "VN";
         $vnp_IpAddr = $_SERVER['REMOTE_ADDR'];
         $inputData = [
@@ -267,7 +267,7 @@ class OrderClientController extends Controller
                 $query->where('order_status_id', 1); //  chờ xác nhận
                 break;
             case 'waiting_payment':
-                $query->where('payment_method', 'vnpay')->where('payment_status_id', 1); // chờ thanh toán
+                $query->where('payment_method', 'vnpay')->where('payment_status_id', 1); // chờ thanh toán// thanh toán onl nhưng ng dùng chưa thanh toán
                 break;
             case 'confirmed':
                 $query->where('order_status_id', 2); // Đã xác nhận
@@ -416,8 +416,7 @@ class OrderClientController extends Controller
             ->whereIn('order_status_id', [1, 2])
             ->findOrFail($id);
 
-        // Trường hợp đã thanh toán online (VNPAY)
-        $needRefund = $order->payment_method === 'vnpay' && in_array($order->payment_status_id, [2]); // 2 = đã thanh toán
+
 
         // Huỷ đơn hàng
         $order->update([
@@ -437,9 +436,9 @@ class OrderClientController extends Controller
         OrderHistory::create([
             'order_id' => $order->id,
             'order_status_id' => 6,
-            'note' => 'Khách hàng huỷ đơn: ' . $request->cancel_reason,
         ]);
-
+        // Trường hợp đã thanh toán online (VNPAY)
+        $needRefund = $order->payment_method === 'vnpay' && in_array($order->payment_status_id, [2]); // 2 = đã thanh toán
         // Nếu cần hoàn tiền thủ công (vì đã thanh toán VNPAY)
         if ($needRefund && !$order->refundRequest) {
             RefundRequest::create([
