@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderHistory;
 use App\Models\OrderStatus;
+use App\Models\ProductVariation;
 use App\Models\RefundRequest;
 use Illuminate\Http\Request;
 
@@ -122,7 +123,10 @@ class OrderController extends Controller
         if ($newStatusId == 6) {
             foreach ($order->items as $item) {
                 if ($item->variation_id) { // Nếu có variation id thì mới cộng vào kho
-                    $item->variation->increment('stock_quantity', $item->quantity);
+                    $variant = ProductVariation::find($item->variation_id);
+                    if ($variant) {
+                        $variant->increment('stock_quantity', $item->quantity);
+                    }
                 }
             }
         }
@@ -226,11 +230,17 @@ class OrderController extends Controller
         $filename = 'refund_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
         $path = $file->storeAs('uploads', $filename, 'public');
         // Cộng lại kho hàng
-        foreach ($refund->order->items as $item) {
-            if ($item->variation_id) {
-                $item->variation->increment('stock_quantity', $item->quantity);
+        if($refund->type != 'cancel_before_shipping'){
+            foreach ($refund->order->items as $item) {
+                if ($item->variation_id) {
+                    $variant = ProductVariation::find($item->variation_id);
+                    if ($variant) {
+                        $variant->increment('stock_quantity', $item->quantity);
+                    }
+                }
             }
         }
+
         // Cập nhật trạng thái "refunded", lưu ảnh và thời gian
         $refund->update([
             'status' => 'refunded',
