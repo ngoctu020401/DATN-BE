@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\User\CartController;
 use App\Http\Controllers\Api\User\HomeController;
 use App\Http\Controllers\Api\User\OrderClientController;
 use App\Http\Controllers\Api\User\Product;
+use App\Http\Controllers\Api\User\ReviewClientController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -49,7 +50,11 @@ Route::get('/categories/{id}/products', [HomeController::class, 'productByCatego
 
 // Chi tiết sản phẩm 
 Route::get('/product-detail/{id}', [Product::class, 'productDetail']);
-
+//
+Route::prefix('reviews')->group(function () {
+    Route::post('/', [ReviewClientController::class, 'store']);
+     Route::put('{id}', [ReviewClientController::class, 'update']);
+});
 
 //Chức năng cần đăng nhập
 Route::prefix('cart')->group(function () {

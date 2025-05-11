@@ -327,9 +327,11 @@ class OrderClientController extends Controller
 
         $order = Order::with([
             'items',
+            'item.variation',
             'status',
             'paymentStatus',
             'refundRequest',
+            'reviews'
         ])->where('user_id', $userId)->findOrFail($id);
 
         $refund = $order->refundRequest;

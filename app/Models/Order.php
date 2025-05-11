@@ -60,4 +60,8 @@ class Order extends Model
     {
         return $this->hasMany(RefundRequest::class);
     }
+        public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
 }
