@@ -402,6 +402,7 @@ class OrderClientController extends Controller
                     ? asset('storage/' . $refund->refund_proof_image)
                     : null,
             ] : null,
+            'reviews'=>$order->reviews
 
         ]);
     }
