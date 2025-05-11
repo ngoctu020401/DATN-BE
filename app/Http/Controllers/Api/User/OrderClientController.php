@@ -327,7 +327,7 @@ class OrderClientController extends Controller
 
         $order = Order::with([
             'items',
-            'item.variation',
+            'items.variation',
             'status',
             'paymentStatus',
             'refundRequest',
