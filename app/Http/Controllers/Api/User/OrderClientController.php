@@ -369,7 +369,9 @@ class OrderClientController extends Controller
                     'product_price' => $item->product_price,
                     'quantity' => $item->quantity,
                     'image' => $item->image,
-                    'variation' => $item->variation
+                    'variation' => $item->variation,
+                    'product_id'=>$item->variation->product_id
+
                 ];
             }),
             // lịch sử đơn hàng 
