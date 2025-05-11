@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Admin\OrderController;
 use App\Http\Controllers\Api\Admin\ProductController;
 use App\Http\Controllers\Api\Admin\SizeController;
 use App\Http\Controllers\Api\Admin\UserController;
+use App\Http\Controllers\Api\Admin\VoucherController;
 use App\Http\Controllers\Api\User\CartController;
 use App\Http\Controllers\Api\User\HomeController;
 use App\Http\Controllers\Api\User\OrderClientController;
@@ -99,12 +100,12 @@ Route::prefix('admin')->group(function () { // Chức năng cần là tài kho�
         Route::get('/status', [OrderController::class, 'orderStatus']); // danh sách đơn hàng
         Route::get('{id}', [OrderController::class, 'show']); // chi tiết đơn hàng
         Route::post('{id}/change-status', [OrderController::class, 'changeStatus']); // cập nhật trạng thái
-    
+
         Route::post('refunds/{id}/approve', [OrderController::class, 'approveRefund']); // duyệt hoàn tiền
         Route::post('refunds/{id}/reject', [OrderController::class, 'rejectRefund']); // từ chối hoàn tiền
         Route::post('refunds/{id}/refunded', [OrderController::class, 'markAsRefunded']); // xác nhận đã hoàn tiền
     });
-    
+
     // Người dùng 
     Route::get('users', [UserController::class, 'index']);        // Danh sách người dùng (có phân trang)
     Route::post('users', [UserController::class, 'store']);       // Tạo người dùng mới
@@ -129,5 +130,13 @@ Route::prefix('admin')->group(function () { // Chức năng cần là tài kho�
         Route::post('/variation', [ProductController::class, 'addVariation']);          // Thêm biến thể
         Route::put('/variation/{id}', [ProductController::class, 'updateVariation']);   // Sửa biến thể
         Route::delete('/variation/{id}', [ProductController::class, 'deleteVariation']); // Xoá biến thể
+    });
+    //
+    Route::prefix('vouchers')->group(function () {
+        Route::get('/', [VoucherController::class, 'index']);     // Danh sách voucher (có phân trang)
+        Route::post('/', [VoucherController::class, 'store']);     // Tạo mới voucher
+        Route::get('{id}', [VoucherController::class, 'show']);    // Xem chi tiết voucher
+        Route::put('{id}', [VoucherController::class, 'update']);  // Cập nhật voucher
+        Route::delete('{id}', [VoucherController::class, 'destroy']); // Xóa voucher
     });
 });
