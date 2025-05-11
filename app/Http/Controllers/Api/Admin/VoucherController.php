@@ -73,4 +73,23 @@ class VoucherController extends Controller
             ], 500);
         }
     }
+    //
+    public function destroy($id)
+    {
+        try {
+            $voucher = Voucher::find($id);
+            if (!$voucher) {
+                return response()->json(['message' => 'Không tìm thấy voucher.'], 404);
+            }
+
+            $voucher->delete();
+
+            return response()->json(['message' => 'Xóa voucher thành công']);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Đã xảy ra lỗi khi xóa voucher',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
