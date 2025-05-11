@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Admin\CategoryController;
 use App\Http\Controllers\Api\Admin\ColorController;
 use App\Http\Controllers\Api\Admin\OrderController;
 use App\Http\Controllers\Api\Admin\ProductController;
+use App\Http\Controllers\Api\Admin\ReviewController;
 use App\Http\Controllers\Api\Admin\SizeController;
 use App\Http\Controllers\Api\Admin\UserController;
 use App\Http\Controllers\Api\Admin\VoucherController;
@@ -139,4 +140,11 @@ Route::prefix('admin')->group(function () { // Chức năng cần là tài kho�
         Route::put('{id}', [VoucherController::class, 'update']);  // Cập nhật voucher
         Route::delete('{id}', [VoucherController::class, 'destroy']); // Xóa voucher
     });
+    //
+    Route::prefix('reviews')->group(function () {
+    Route::get('/', [ReviewController::class, 'index']);         // Danh sách đánh giá
+    Route::get('{id}', [ReviewController::class, 'show']);       // Chi tiết đánh giá
+    Route::post('{id}/reply', [ReviewController::class, 'reply']); // Trả lời đánh giá
+    Route::post('{id}/block', [ReviewController::class, 'block']); // Ẩn/hiện đánh giá
+});
 });

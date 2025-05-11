@@ -26,7 +26,7 @@ class ReviewController extends Controller
     public function show($id)
     {
         try {
-            $review = Review::find($id);
+            $review = Review::with('product')->find($id);
             if (!$review) {
                 return response()->json(['message' => 'Không tìm thấy đánh giá'], 404);
             }

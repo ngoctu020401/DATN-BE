@@ -35,7 +35,7 @@ class Review extends Model
     // (Optional) Quan hệ: review thuộc về 1 sản phẩm
     public function product()
     {
-        return $this->belongsTo(Product::class);
+       return $this->belongsTo(Product::class)->withTrashed();
     }
 
     public function order()
