@@ -370,7 +370,7 @@ class OrderClientController extends Controller
                     'quantity' => $item->quantity,
                     'image' => $item->image,
                     'variation' => $item->variation,
-
+                    'review'=>$item->review
                 ];
             }),
             // lịch sử đơn hàng 
@@ -402,7 +402,7 @@ class OrderClientController extends Controller
                     ? asset('storage/' . $refund->refund_proof_image)
                     : null,
             ] : null,
-            'reviews'=>$order->reviews
+           
 
         ]);
     }
