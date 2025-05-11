@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\ProductVariation;
 use App\Models\Review;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -23,7 +24,7 @@ class ReviewClientController extends Controller
             $validator = Validator::make($request->all(), [
                 'order_id' => 'required|exists:orders,id',
                 'order_item_id' => 'required|exists:order_items,id',
-                'product_id' => 'required|exists:products,id',
+                'variation_id' => 'required',
                 'rating' => 'required|integer|min:1|max:5',
                 'content' => 'required|string|max:2000',
                 'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048'
@@ -32,8 +33,7 @@ class ReviewClientController extends Controller
                 'order_id.exists' => 'Đơn hàng không tồn tại.',
                 'order_item_id.required' => 'Thiếu sản phẩm trong đơn.',
                 'order_item_id.exists' => 'Sản phẩm trong đơn không tồn tại.',
-                'product_id.required' => 'Thiếu mã sản phẩm.',
-                'product_id.exists' => 'Sản phẩm không tồn tại.',
+                'variation_id.required' => 'Thiếu mã sản phẩm.',
                 'rating.required' => 'Vui lòng chọn số sao.',
                 'rating.min' => 'Số sao tối thiểu là 1.',
                 'rating.max' => 'Số sao tối đa là 5.',
@@ -50,7 +50,7 @@ class ReviewClientController extends Controller
                     'errors' => $validator->errors()->all()
                 ], 422);
             }
-
+            
             $images = [];
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $image) {
@@ -61,6 +61,8 @@ class ReviewClientController extends Controller
             }
 
             $data = $validator->validated();
+            $variation = ProductVariation::find($data['variation_id']);
+            $data['product_id'] = $variation->product_id;
             $data['user_id'] = $user->id;
             $data['images'] = $images;
             $data['is_active'] = true;

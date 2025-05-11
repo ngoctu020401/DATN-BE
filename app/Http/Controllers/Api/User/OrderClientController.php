@@ -370,7 +370,6 @@ class OrderClientController extends Controller
                     'quantity' => $item->quantity,
                     'image' => $item->image,
                     'variation' => $item->variation,
-                    'product_id'=>$item->variant->product_id
 
                 ];
             }),
