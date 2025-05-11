@@ -16,7 +16,7 @@ class ReviewClientController extends Controller
     public function store(Request $request)
     {
         try {
-            $user = $request->user();
+            $user = auth('sanctum')->user();;
             if (!$user) {
                 return response()->json(['message' => 'Bạn cần đăng nhập để đánh giá.'], 401);
             }
@@ -50,7 +50,7 @@ class ReviewClientController extends Controller
                     'errors' => $validator->errors()->all()
                 ], 422);
             }
-            
+
             $images = [];
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $image) {
@@ -82,73 +82,71 @@ class ReviewClientController extends Controller
         }
     }
     //
-public function update(Request $request, $id)
-{
-    try {
-        $user = $request->user();
-        if (!$user) {
-            return response()->json(['message' => 'Bạn cần đăng nhập để sửa đánh giá.'], 401);
-        }
-
-        $review = Review::find($id);
-        if (!$review || $review->user_id !== $user->id) {
-            return response()->json(['message' => 'Không tìm thấy hoặc không có quyền'], 403);
-        }
-
-        if ($review->is_updated) {
-            return response()->json(['message' => 'Bạn chỉ được sửa đánh giá một lần'], 403);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'rating' => 'required|integer|min:1|max:5',
-            'content' => 'required|string|max:2000',
-            'keep_images' => 'nullable|array',
-            'keep_images.*' => 'string',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Dữ liệu không hợp lệ',
-                'errors' => $validator->errors()->all()
-            ], 422);
-        }
-
-        // 1. Giữ lại ảnh cũ theo yêu cầu
-        $keepImages = $request->input('keep_images', []);
-        $newImages = [];
-
-        // 2. Upload ảnh mới (nếu có)
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $image) {
-                $imageName = 'review_' . time() . '_' . Str::uuid() . '.' . $image->getClientOriginalExtension();
-                $imagePath = $image->storeAs('uploads', $imageName, 'public');
-                $newImages[] = 'storage/' . $imagePath;
+    public function update(Request $request, $id)
+    {
+        try {
+            $user = $request->user();
+            if (!$user) {
+                return response()->json(['message' => 'Bạn cần đăng nhập để sửa đánh giá.'], 401);
             }
+
+            $review = Review::find($id);
+            if (!$review || $review->user_id !== $user->id) {
+                return response()->json(['message' => 'Không tìm thấy hoặc không có quyền'], 403);
+            }
+
+            if ($review->is_updated) {
+                return response()->json(['message' => 'Bạn chỉ được sửa đánh giá một lần'], 403);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'rating' => 'required|integer|min:1|max:5',
+                'content' => 'required|string|max:2000',
+                'keep_images' => 'nullable|array',
+                'keep_images.*' => 'string',
+                'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => 'Dữ liệu không hợp lệ',
+                    'errors' => $validator->errors()->all()
+                ], 422);
+            }
+
+            // 1. Giữ lại ảnh cũ theo yêu cầu
+            $keepImages = $request->input('keep_images', []);
+            $newImages = [];
+
+            // 2. Upload ảnh mới (nếu có)
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $image) {
+                    $imageName = 'review_' . time() . '_' . Str::uuid() . '.' . $image->getClientOriginalExtension();
+                    $imagePath = $image->storeAs('uploads', $imageName, 'public');
+                    $newImages[] = 'storage/' . $imagePath;
+                }
+            }
+
+            // 3. Gộp ảnh cũ còn giữ + ảnh mới
+            $allImages = array_merge($keepImages, $newImages);
+
+            // 4. Cập nhật
+            $review->update([
+                'rating' => $request->rating,
+                'content' => $request->content,
+                'images' => $allImages,
+                'is_updated' => true
+            ]);
+
+            return response()->json([
+                'message' => 'Cập nhật đánh giá thành công',
+                'data' => $review
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Lỗi khi cập nhật đánh giá',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        // 3. Gộp ảnh cũ còn giữ + ảnh mới
-        $allImages = array_merge($keepImages, $newImages);
-
-        // 4. Cập nhật
-        $review->update([
-            'rating' => $request->rating,
-            'content' => $request->content,
-            'images' => $allImages,
-            'is_updated' => true
-        ]);
-
-        return response()->json([
-            'message' => 'Cập nhật đánh giá thành công',
-            'data' => $review
-        ]);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'message' => 'Lỗi khi cập nhật đánh giá',
-            'error' => $e->getMessage()
-        ], 500);
     }
-}
-
 }
