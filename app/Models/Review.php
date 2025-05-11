@@ -15,8 +15,6 @@ class Review extends Model
         'order_item_id',
         'product_id',
         'user_id',
-        'customer_name',
-        'customer_mail',
         'rating',
         'content',
         'images',

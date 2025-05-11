@@ -17,8 +17,6 @@ return new class extends Migration
             $table->unsignedBigInteger('order_item_id');
             $table->unsignedBigInteger('product_id');
             $table->unsignedBigInteger('user_id')->nullable();
-            $table->string('customer_name')->nullable();
-            $table->string('customer_mail')->nullable(); 
             $table->tinyInteger('rating')->unsigned();
             $table->text('content');
             $table->json('images')->nullable(); 
