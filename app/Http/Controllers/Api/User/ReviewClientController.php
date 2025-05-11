@@ -85,7 +85,7 @@ class ReviewClientController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            $user = $request->user();
+             $user = auth('sanctum')->user();
             if (!$user) {
                 return response()->json(['message' => 'Bạn cần đăng nhập để sửa đánh giá.'], 401);
             }
