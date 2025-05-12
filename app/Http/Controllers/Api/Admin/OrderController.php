@@ -80,7 +80,7 @@ class OrderController extends Controller
                 return [
                     'id' => $history->id,
                     'status' => $history->status->name ?? 'Không xác định',
-                    'note' => $history->note,
+                    'user_change' => $history->user_change,
                     'created_at' => $history->created_at->format('d-m-Y H:i'),
                 ];
             }),
@@ -88,7 +88,7 @@ class OrderController extends Controller
             'updated_at' => $order->updated_at->format('d-m-Y H:i'),
         ], 200);
     }
-//
+    //
     public function changeStatus(Request $request, $orderId)
     {
         $user = auth('sanctum')->user();
@@ -140,7 +140,7 @@ class OrderController extends Controller
         }
 
         //  Ngăn chuyển thẳng từ Đã giao sang "Hoàn tất" (5) hoặc "Yêu cầu hoàn tiền" (7) vì admin không có quyền này
-        if (in_array($newStatusId, [5, 7,8])) {
+        if (in_array($newStatusId, [5, 7, 8])) {
             return response()->json([
                 'message' => 'Không thể chuyển trạng thái không đúng luồng',
             ], 422);
@@ -160,7 +160,7 @@ class OrderController extends Controller
         OrderHistory::create([
             'order_id' => $order->id,
             'order_status_id' => $newStatusId,
-            'user_id'=>$user->id
+            'user_change' => $user->role . ' - ' . $user->email
         ]);
 
         //  Trả về phản hồi
@@ -221,53 +221,51 @@ class OrderController extends Controller
             //code...
             $user = auth('sanctum')->user();
             // Yêu cầu phải upload ảnh minh chứng (jpg/jpeg/png/pdf)
-        $request->validate([
-            'refund_proof_image' => 'required|image|mimes:jpg,jpeg,png,pdf|max:2048',
-        ]);
+            $request->validate([
+                'refund_proof_image' => 'required|image|mimes:jpg,jpeg,png,pdf|max:2048',
+            ]);
 
-        // Chỉ xử lý yêu cầu đã được duyệt (approved)
-        $refund = RefundRequest::where('status', 'approved')->findOrFail($id);
+            // Chỉ xử lý yêu cầu đã được duyệt (approved)
+            $refund = RefundRequest::where('status', 'approved')->findOrFail($id);
 
-        // Xử lý file upload và đặt tên file theo thời gian hiện tại
-        $file = $request->file('refund_proof_image');
-        $filename = 'refund_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
-        $path = $file->storeAs('uploads', $filename, 'public');
-        // Cộng lại kho hàng
-        if($refund->type == 'return_after_received'){ // nẾU ĐƠN HÀNG LÀ HOÀN TRẢ SAU KHI GIAO
-            foreach ($refund->order->items as $item) {
-                if ($item->variation_id) {
-                    $variant = ProductVariation::find($item->variation_id);
-                    if ($variant) {
-                        $variant->increment('stock_quantity', $item->quantity);
+            // Xử lý file upload và đặt tên file theo thời gian hiện tại
+            $file = $request->file('refund_proof_image');
+            $filename = 'refund_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('uploads', $filename, 'public');
+            // Cộng lại kho hàng
+            if ($refund->type == 'return_after_received') { // nẾU ĐƠN HÀNG LÀ HOÀN TRẢ SAU KHI GIAO
+                foreach ($refund->order->items as $item) {
+                    if ($item->variation_id) {
+                        $variant = ProductVariation::find($item->variation_id);
+                        if ($variant) {
+                            $variant->increment('stock_quantity', $item->quantity);
+                        }
                     }
                 }
             }
-        }
 
-        // Cập nhật trạng thái "refunded", lưu ảnh và thời gian
-        $refund->update([
-            'status' => 'refunded',
-            'refunded_at' => now(),
-            'refund_proof_image' => $path,
-        ]);
+            // Cập nhật trạng thái "refunded", lưu ảnh và thời gian
+            $refund->update([
+                'status' => 'refunded',
+                'refunded_at' => now(),
+                'refund_proof_image' => $path,
+            ]);
 
-        // Đồng thời cập nhật trạng thái đơn hàng nếu cần
-        $refund->order->update(['order_status_id' => 8, 'payment_status_id' => 3]); // 8 = Hoàn tiền thành công
-        OrderHistory::create([
-            'order_id' => $refund->order->id,
-            'order_status_id' => 8,
-            'user_id'=>$user->id
-        ]);
-        return response()->json([
-            'message' => 'Đã xác nhận hoàn tiền thành công.',
-        ]);
-    
+            // Đồng thời cập nhật trạng thái đơn hàng nếu cần
+            $refund->order->update(['order_status_id' => 8, 'payment_status_id' => 3]); // 8 = Hoàn tiền thành công
+            OrderHistory::create([
+                'order_id' => $refund->order->id,
+                'order_status_id' => 8,
+                'user_change' => $user->role . ' - ' . $user->email
+            ]);
+            return response()->json([
+                'message' => 'Đã xác nhận hoàn tiền thành công.',
+            ]);
         } catch (\Throwable $th) {
             //throw $th;
             return response()->json([
                 'message' => 'Lỗi',
             ], 422);
         }
-        
-}
+    }
 }

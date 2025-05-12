@@ -13,7 +13,7 @@ class ReviewController extends Controller
     public function index()
     {
         try {
-            $reviews = Review::orderByDesc('created_at')->paginate(20);
+            $reviews = Review::with('product')->orderByDesc('created_at')->paginate(20);
             return response()->json($reviews);
         } catch (\Exception $e) {
             return response()->json([

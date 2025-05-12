@@ -11,6 +11,7 @@ class OrderHistory extends Model
     protected $fillable = [
         'order_id',
         'order_status_id',
+        'user_change'
     ];
 
     public function order()
@@ -18,8 +19,11 @@ class OrderHistory extends Model
         return $this->belongsTo(Order::class);
     }
     public function status()
-{
-    return $this->belongsTo(OrderStatus::class, 'order_status_id');
-}
-
+    {
+        return $this->belongsTo(OrderStatus::class, 'order_status_id');
+    }
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

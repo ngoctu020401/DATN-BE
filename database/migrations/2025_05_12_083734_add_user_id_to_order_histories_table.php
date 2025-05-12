@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('order_histories', function (Blueprint $table) {
             //
-            $table->unsignedBigInteger('user_id')->default(1);
+            $table->string('user_change')->default('admin');
         });
     }
 

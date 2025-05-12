@@ -120,7 +120,8 @@ class OrderClientController extends Controller
             //10: Ghi log lịch sử đơn hàng
             OrderHistory::create([
                 'order_id' => $order->id,
-                'order_status_id' => 1
+                'order_status_id' => 1,
+                'user_change' => 'system'
             ]);
 
             //11: Commit transaction sau khi mọi thao tác thành công
@@ -438,7 +439,7 @@ class OrderClientController extends Controller
         }
         // Ghi lịch sử huỷ đơn
         OrderHistory::create([
-            'user_id' => $userId,
+            'user_change' => $user->role . ' - ' . $user->email,
             'order_id' => $order->id,
             'order_status_id' => 6,
         ]);
@@ -546,7 +547,7 @@ class OrderClientController extends Controller
         $order->update(['order_status_id' => 7]);
         OrderHistory::create(
             [
-                'user_id' => $userId,
+                'user_change' => $user->role . ' - ' . $user->email,
                 'order_id' => $order->id,
                 'order_status_id' => 7,
             ]
@@ -578,7 +579,7 @@ class OrderClientController extends Controller
         OrderHistory::create([
             'order_id' => $order->id,
             'order_status_id' => 5,
-            'user_id' => $userId,
+            'user_change' => $user->role . ' - ' . $user->email
         ]);
 
         return response()->json([
