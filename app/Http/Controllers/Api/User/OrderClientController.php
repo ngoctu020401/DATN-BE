@@ -370,7 +370,7 @@ class OrderClientController extends Controller
                     'quantity' => $item->quantity,
                     'image' => $item->image,
                     'variation' => $item->variation,
-                    'review'=>$item->review
+                    'review' => $item->review
                 ];
             }),
             // lịch sử đơn hàng 
@@ -402,7 +402,7 @@ class OrderClientController extends Controller
                     ? asset('storage/' . $refund->refund_proof_image)
                     : null,
             ] : null,
-           
+
 
         ]);
     }
@@ -438,6 +438,7 @@ class OrderClientController extends Controller
         }
         // Ghi lịch sử huỷ đơn
         OrderHistory::create([
+            'user_id' => $userId,
             'order_id' => $order->id,
             'order_status_id' => 6,
         ]);
@@ -543,6 +544,13 @@ class OrderClientController extends Controller
             'bank_account_number' => $request->bank_account_number,
         ]);
         $order->update(['order_status_id' => 7]);
+        OrderHistory::create(
+            [
+                'user_id' => $userId,
+                'order_id' => $order->id,
+                'order_status_id' => 7,
+            ]
+        );
         return response()->json([
             'message' => 'Đã gửi yêu cầu hoàn tiền thành công.',
         ]);
@@ -570,6 +578,7 @@ class OrderClientController extends Controller
         OrderHistory::create([
             'order_id' => $order->id,
             'order_status_id' => 5,
+            'user_id' => $userId,
         ]);
 
         return response()->json([

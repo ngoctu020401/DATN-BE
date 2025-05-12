@@ -91,6 +91,7 @@ class OrderController extends Controller
 //
     public function changeStatus(Request $request, $orderId)
     {
+        $user = auth('sanctum')->user();
         //  Validate dữ liệu đầu vào
         $data = $request->validate([
             'new_status_id' => 'required|exists:order_statuses,id',
@@ -139,7 +140,7 @@ class OrderController extends Controller
         }
 
         //  Ngăn chuyển thẳng từ Đã giao sang "Hoàn tất" (5) hoặc "Yêu cầu hoàn tiền" (7) vì admin không có quyền này
-        if (in_array($newStatusId, [5, 7])) {
+        if (in_array($newStatusId, [5, 7,8])) {
             return response()->json([
                 'message' => 'Không thể chuyển trạng thái không đúng luồng',
             ], 422);
@@ -159,6 +160,7 @@ class OrderController extends Controller
         OrderHistory::create([
             'order_id' => $order->id,
             'order_status_id' => $newStatusId,
+            'user_id'=>$user->id
         ]);
 
         //  Trả về phản hồi
@@ -217,6 +219,7 @@ class OrderController extends Controller
     {
         try {
             //code...
+            $user = auth('sanctum')->user();
             // Yêu cầu phải upload ảnh minh chứng (jpg/jpeg/png/pdf)
         $request->validate([
             'refund_proof_image' => 'required|image|mimes:jpg,jpeg,png,pdf|max:2048',
@@ -253,6 +256,7 @@ class OrderController extends Controller
         OrderHistory::create([
             'order_id' => $refund->order->id,
             'order_status_id' => 8,
+            'user_id'=>$user->id
         ]);
         return response()->json([
             'message' => 'Đã xác nhận hoàn tiền thành công.',
