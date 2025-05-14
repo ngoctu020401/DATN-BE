@@ -10,10 +10,34 @@ use Illuminate\Support\Facades\Validator;
 class ReviewController extends Controller
 {
     //
-    public function index()
+    public function index(Request $request)
     {
         try {
-            $reviews = Review::with('product')->orderByDesc('created_at')->paginate(20);
+            $query = Review::with(['product', 'user']);
+
+            // Lọc theo trạng thái reply
+            if ($request->has('has_reply')) {
+                if ($request->has_reply) {
+                    $query->whereNotNull('reply');
+                } else {
+                    $query->whereNull('reply');
+                }
+            }
+
+            // Lọc theo trạng thái active
+            if ($request->has('is_active')) {
+                $query->where('is_active', $request->is_active);
+            }
+
+            // Lọc theo số sao
+            if ($request->has('rating')) {
+                $query->where('rating', $request->rating);
+            }
+            // Sắp xếp
+
+            $query->latest('created_at');
+
+            $reviews = $query->paginate(20);
             return response()->json($reviews);
         } catch (\Exception $e) {
             return response()->json([

@@ -19,9 +19,31 @@ class OrderController extends Controller
         return response()->json($status, 200);
     }
     //
-    public function index()
+    public function index(Request $request)
     {
-        $orders = Order::with('status', 'paymentStatus')->orderBy('created_at', 'desc')->paginate(20);
+        $query = Order::with('status', 'paymentStatus');
+
+        // Lọc theo trạng thái đơn hàng
+        if ($request->has('status_id')) {
+            $query->where('order_status_id', $request->status_id);
+        }
+
+        // Tìm kiếm theo mã đơn hàng
+        if ($request->has('order_code')) {
+            $query->where('order_code', 'like', '%' . $request->order_code . '%');
+        }
+
+        // Tìm kiếm theo tên khách hàng
+        if ($request->has('name')) {
+            $query->where('name', 'like', '%' . $request->name . '%');
+        }
+
+        // Tìm kiếm theo số điện thoại
+        if ($request->has('phone')) {
+            $query->where('phone', 'like', '%' . $request->phone . '%');
+        }
+
+        $orders = $query->orderBy('created_at', 'desc')->paginate(20);
         return response()->json($orders, 200);
     }
     public function show($id)
@@ -120,7 +142,7 @@ class OrderController extends Controller
                 'message' => 'Vui lòng nhập lý do huỷ đơn hàng.',
             ], 422);
         }
-        //Cộng lại số lượng 
+        //Cộng lại số lượng
         if ($newStatusId == 6) {
             foreach ($order->items as $item) {
                 if ($item->variation_id) { // Nếu có variation id thì mới cộng vào kho

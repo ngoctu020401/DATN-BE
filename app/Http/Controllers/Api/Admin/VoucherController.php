@@ -12,7 +12,41 @@ class VoucherController extends Controller
     //
     public function index(Request $request)
     {
-        $vouchers = Voucher::orderByDesc('created_at')->paginate(10);
+        $query = Voucher::query();
+
+        // Lọc theo trạng thái
+        if ($request->has('is_active')) {
+            $query->where('is_active', $request->is_active);
+        }
+
+        // Lọc theo loại voucher
+        if ($request->has('type')) {
+            $query->where('type', $request->type);
+        }
+
+        // Lọc theo thời gian
+        if ($request->has('start_date')) {
+            $query->where('start_date', '>=', $request->start_date);
+        }
+        if ($request->has('end_date')) {
+            $query->where('end_date', '<=', $request->end_date);
+        }
+
+        // Lọc theo trạng thái còn hạn/hết hạn
+        if ($request->has('is_expired')) {
+            if ($request->is_expired) {
+                $query->where('end_date', '<', now());
+            } else {
+                $query->where('end_date', '>=', now());
+            }
+        }
+
+        // Tìm kiếm theo mã voucher
+        if ($request->has('code')) {
+            $query->where('code', 'like', '%' . $request->code . '%');
+        }
+
+        $vouchers = $query->orderByDesc('created_at')->paginate(10);
         return response()->json($vouchers);
     }
     //

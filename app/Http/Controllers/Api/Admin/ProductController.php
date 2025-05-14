@@ -15,12 +15,24 @@ use Illuminate\Support\Str;
 class ProductController extends Controller
 {
     //
-    public function index()
+    public function index(Request $request)
     {
         try {
+            $query = Product::with('category');
+
+            // Tìm kiếm theo tên sản phẩm
+            if ($request->has('name')) {
+                $query->where('name', 'like', '%' . $request->name . '%');
+            }
+
+            // Lọc theo danh mục
+            if ($request->has('category_id')) {
+                $query->where('category_id', $request->category_id);
+            }
+
             // Lấy danh sách sản phẩm kèm thông tin danh mục, phân trang 10 sản phẩm/trang
-            $produtcs = Product::with('category')->paginate(10);
-            return response()->json($produtcs, 200);
+            $products = $query->orderBy('created_at', 'desc')->paginate(20);
+            return response()->json($products, 200);
         } catch (\Throwable $th) {
             // Trả về lỗi nếu có exception
             return response()->json([
@@ -29,7 +41,7 @@ class ProductController extends Controller
             ], 500);
         }
     }
-    
+
     //
     public function store(Request $request)
     {
@@ -49,12 +61,12 @@ class ProductController extends Controller
             ], [
                 'sale_price.lt' => 'Giá khuyến mãi phải nhỏ hơn giá gốc.',
             ]);
-    
+
             // Lưu ảnh chính
             $mainImage = $request->file('main_image');
             $mainImageName = 'main_' . time() . '_' . Str::uuid() . '.' . $mainImage->getClientOriginalExtension();// lưu ảnh vào public
-            $mainImagePath = $mainImage->storeAs('uploads', $mainImageName, 'public'); // lấy ra link ảnh 
-    
+            $mainImagePath = $mainImage->storeAs('uploads', $mainImageName, 'public'); // lấy ra link ảnh
+
             // Tạo sản phẩm
             $product = Product::create([
                 'name' => $data['name'],
@@ -63,7 +75,7 @@ class ProductController extends Controller
                 'category_id' => $data['category_id'] ?? 1,
                 'is_active' => true,
             ]);
-    
+
             // Thêm biến thể đầu tiên
             ProductVariation::create([
                 'product_id' => $product->id,
@@ -73,20 +85,20 @@ class ProductController extends Controller
                 'sale_price' => $data['sale_price'] ?? null,
                 'stock_quantity' => $data['stock_quantity'] ?? 0,
             ]);
-    
+
             // Lưu các ảnh phụ (nếu có)
-            if ($request->hasFile('images')) { 
+            if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $image) {
                     $imageName = 'gallery_' . time() . '_' . Str::uuid() . '.' . $image->getClientOriginalExtension();
                     $imagePath = $image->storeAs('uploads', $imageName, 'public');
-    
+
                     ProductImage::create([
                         'product_id' => $product->id,
                         'url' => $imagePath,
                     ]);
                 }
             }
-    
+
             return response()->json([
                 'message' => 'Thêm sản phẩm thành công',
                 'product' => $product
@@ -98,7 +110,7 @@ class ProductController extends Controller
             ], 500);
         }
     }
-    
+
     //
     public function show($id)
     {
@@ -125,14 +137,14 @@ class ProductController extends Controller
     {
         try {
             $product = Product::with(['images', 'variations'])->findOrFail($id);
-    
+
             $data = $request->validate([
                 'name' => 'required|string|max:255',
                 'description' => 'nullable|string',
                 'main_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
                 'category_id' => 'nullable|exists:categories,id',
-            ]); 
-    
+            ]);
+
             // Cập nhật ảnh chính nếu có
             if ($request->hasFile('main_image')) {
                 $mainImage = $request->file('main_image');
@@ -140,14 +152,14 @@ class ProductController extends Controller
                 $mainImagePath = $mainImage->storeAs('uploads', $mainImageName, 'public');
                 $product->main_image = $mainImagePath;
             }
-    
+
             // Cập nhật thông tin sản phẩm
             $product->update([
                 'name' => $data['name'],
                 'description' => $data['description'] ?? null,
                 'category_id' => $data['category_id'] ?? $product->category_id,
             ]);
-    
+
             return response()->json([
                 'message' => 'Cập nhật sản phẩm thành công',
                 'product' => $product->fresh(['images', 'variations'])
@@ -159,8 +171,8 @@ class ProductController extends Controller
             ], 500);
         }
     }
-    
-    // Sửa biến thể 
+
+    // Sửa biến thể
 
     public function updateVariation(Request $request, $id)
     {
@@ -307,14 +319,14 @@ class ProductController extends Controller
     {
         try {
             $image = ProductImage::findOrFail($id);
-    
+
             // Xoá file vật lý nếu tồn tại
             if ($image->url && Storage::disk('public')->exists($image->url)) {
                 Storage::disk('public')->delete($image->url);
             }
-    
+
             $image->forceDelete(); // Xoá record DB
-    
+
             return response()->json([
                 'message' => 'Xoá ảnh thành công'
             ]);
@@ -325,17 +337,17 @@ class ProductController extends Controller
             ], 500);
         }
     }
-    
+
 
     //
     public function destroy($id)
     {
         //  Lấy sản phẩm theo ID và load cả biến thể + hình ảnh liên quan
         $product = Product::with(['variations', 'images'])->findOrFail($id);
-    
+
         //  Xác định các trạng thái đơn hàng được xem là đã hoàn tất hoặc không còn xử lý nữa
         $excludedStatuses = [5, 6, 8]; // 5: Hoàn thành, 6: Đã huỷ, 8: Hoàn tiền thành công
-    
+
         //  Duyệt qua từng biến thể của sản phẩm
         foreach ($product->variations as $variation) {
             // Kiểm tra xem biến thể này có trong đơn hàng nào đang xử lý không
@@ -345,7 +357,7 @@ class ProductController extends Controller
                     $query->whereNotIn('order_status_id', $excludedStatuses);
                 })
                 ->exists(); // true nếu tìm thấy → biến thể đang được sử dụng
-    
+
             // Nếu biến thể đang nằm trong đơn hàng đang xử lý → không cho xoá
             if ($inActiveOrder) {
                 return response()->json([
@@ -353,26 +365,26 @@ class ProductController extends Controller
                 ], 422); // Trả về lỗi 422 (Unprocessable Entity)
             }
         }
-    
+
         //  Nếu không có ràng buộc đơn hàng → tiến hành xoá
-    
+
         //  Soft delete sản phẩm (đánh dấu deleted_at)
         $product->delete();
-    
+
         //  Soft delete toàn bộ ảnh sản phẩm
         foreach ($product->images as $image) {
             $image->delete();
         }
-    
+
         //  Soft delete toàn bộ biến thể sản phẩm
         foreach ($product->variations as $variation) {
             $variation->delete();
         }
-    
+
         // Trả về phản hồi thành công
         return response()->json([
             'message' => 'Xoá sản phẩm thành công',
         ]);
     }
-    
+
 }

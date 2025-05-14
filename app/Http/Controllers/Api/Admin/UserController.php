@@ -14,14 +14,32 @@ use Illuminate\Support\Str;
 class UserController extends Controller
 {
     //
-    public function index()
+    public function index(Request $request)
     {
         try {
-            //code...
-            $size = User::paginate(10); // 
-            return response()->json($size, 200);
+            $query = User::query();
+
+            // Lọc theo quyền
+            if ($request->has('role')) {
+                $query->where('role', $request->role);
+            }
+
+            // Lọc theo trạng thái active
+            if ($request->has('is_active')) {
+                $query->where('is_active', $request->is_active);
+            }
+
+            // Tìm kiếm theo tên hoặc email
+            if ($request->has('search')) {
+                $query->where(function($q) use ($request) {
+                    $q->where('name', 'like', '%' . $request->search . '%')
+                      ->orWhere('email', 'like', '%' . $request->search . '%');
+                });
+            }
+
+            $users = $query->orderByDesc('created_at')->paginate(10);
+            return response()->json($users, 200);
         } catch (\Throwable $th) {
-            //throw $th;
             return response()->json([
                 'message' => 'Lỗi',
                 'errors' => $th->getMessage()
