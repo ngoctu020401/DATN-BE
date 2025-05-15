@@ -26,7 +26,7 @@ class HomeController extends Controller
         $categories = Category::where('id', '!=', 1)->get();
         return response()->json($categories, 200);
     }
-    // 
+    //
     public function allProduct(Request $request)
     {
         $query = Product::with(['category', 'variationMinPrice']);

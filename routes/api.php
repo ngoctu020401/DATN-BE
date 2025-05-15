@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\User\HomeController;
 use App\Http\Controllers\Api\User\OrderClientController;
 use App\Http\Controllers\Api\User\Product;
 use App\Http\Controllers\Api\User\ReviewClientController;
+use App\Http\Controllers\Api\User\VoucherClientController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -33,6 +34,7 @@ Route::post('/signup', [AuthController::class, 'signup']);
 Route::get('/profile', [AuthController::class, 'profile']);
 Route::put('/user/profile', [AuthController::class, 'updateProfile']);
 Route::post('/user/change-password', [AuthController::class, 'changePassword']);
+Route::get('/list-voucher', [VoucherClientController::class, 'getValidVouchers']);
 //  Sản phẩm mới
 Route::get('/new-products', [HomeController::class, 'newProdutcs']);
 
@@ -61,6 +63,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/remove', [CartController::class, 'remove']); // Xoá sản phẩm khỏi giỏ
         Route::post('/checkout-data', [CartController::class, 'checkoutData']); // Lấy dữ liệu sản phẩm đã chọn để checkout
     });
+    //Mã giảm giá
+    Route::post('/apply-voucher', [VoucherClientController::class, 'applyVoucher']);
     //Đanh gia
     Route::prefix('reviews')->group(function () {
         Route::post('/', [ReviewClientController::class, 'store']);
