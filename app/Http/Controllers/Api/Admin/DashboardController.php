@@ -7,6 +7,9 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use App\Models\Review;
+use App\Models\Category;
+use App\Models\Voucher;
+use App\Models\RefundRequest;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -29,27 +32,29 @@ class DashboardController extends Controller
                 return response()->json(Cache::get($cacheKey));
             }
 
-            // Thống kê tổng quan với eager loading
+            // Thống kê tổng quan
             $overview = [
                 'total_orders' => Order::whereBetween('created_at', [$startDate, $endDate])->count(),
                 'total_revenue' => Order::whereBetween('created_at', [$startDate, $endDate])
-                    ->where('order_status_id', '!=', 6)
+                    ->where('order_status_id', '!=', 6) // Không tính đơn hủy
                     ->sum('final_amount'),
                 'total_users' => User::whereBetween('created_at', [$startDate, $endDate])->count(),
                 'total_products' => Product::whereBetween('created_at', [$startDate, $endDate])->count(),
                 'total_reviews' => Review::whereBetween('created_at', [$startDate, $endDate])->count(),
+                'total_categories' => Category::count(),
+                'total_vouchers' => Voucher::whereBetween('created_at', [$startDate, $endDate])->count(),
                 'average_order_value' => $this->calculateAverageOrderValue($startDate, $endDate),
                 'conversion_rate' => $this->calculateConversionRate($startDate, $endDate),
             ];
 
-            // Thống kê đơn hàng theo trạng thái với tên trạng thái
+            // Thống kê đơn hàng theo trạng thái
             $orderStatusStats = Order::whereBetween('created_at', [$startDate, $endDate])
                 ->select('order_status_id', DB::raw('count(*) as total'))
                 ->groupBy('order_status_id')
                 ->with('status:id,name')
                 ->get();
 
-            // Tính tỷ lệ hủy và hoàn với thông tin chi tiết
+            // Thống kê hủy và hoàn tiền
             $cancelAndRefundStats = Order::whereBetween('created_at', [$startDate, $endDate])
                 ->select(
                     DB::raw('COUNT(CASE WHEN order_status_id = 6 THEN 1 END) as total_cancelled'),
@@ -68,7 +73,7 @@ class DashboardController extends Controller
                 ? round(($cancelAndRefundStats->total_refunded / $cancelAndRefundStats->total_orders) * 100, 2)
                 : 0;
 
-            // Thống kê doanh thu theo ngày với thông tin chi tiết
+            // Thống kê doanh thu theo ngày
             $revenueByDay = Order::whereBetween('created_at', [$startDate, $endDate])
                 ->where('order_status_id', '!=', 6)
                 ->select(
@@ -81,7 +86,7 @@ class DashboardController extends Controller
                 ->orderBy('date')
                 ->get();
 
-            // Thống kê đơn hàng chờ xác nhận với thời gian chờ
+            // Thống kê đơn hàng chờ xác nhận
             $pendingOrders = Order::where('order_status_id', 1)
                 ->select(
                     DB::raw('COUNT(*) as total'),
@@ -89,7 +94,7 @@ class DashboardController extends Controller
                 )
                 ->first();
 
-            // Thống kê phương thức thanh toán với tỷ lệ
+            // Thống kê phương thức thanh toán
             $paymentMethodStats = Order::whereBetween('created_at', [$startDate, $endDate])
                 ->select(
                     'payment_method',
@@ -101,7 +106,7 @@ class DashboardController extends Controller
                 ->groupBy('payment_method')
                 ->get();
 
-            // Thống kê đánh giá chi tiết
+            // Thống kê đánh giá
             $reviewStats = Review::whereBetween('created_at', [$startDate, $endDate])
                 ->select(
                     DB::raw('AVG(rating) as average_rating'),
@@ -122,6 +127,36 @@ class DashboardController extends Controller
                 ->limit(5)
                 ->get();
 
+            // Thống kê voucher
+            $voucherStats = Voucher::whereBetween('created_at', [$startDate, $endDate])
+                ->select(
+                    DB::raw('COUNT(*) as total_vouchers'),
+                    DB::raw('SUM(times_used) as total_usage'),
+                    DB::raw('AVG(discount_percent) as avg_discount_percent'),
+                    DB::raw('AVG(amount) as avg_discount_amount')
+                )
+                ->first();
+
+            // Thống kê yêu cầu hoàn tiền
+            $refundStats = RefundRequest::whereBetween('created_at', [$startDate, $endDate])
+                ->select(
+                    DB::raw('COUNT(*) as total_requests'),
+                    DB::raw('COUNT(CASE WHEN status = "approved" THEN 1 END) as approved_requests'),
+                    DB::raw('COUNT(CASE WHEN status = "rejected" THEN 1 END) as rejected_requests'),
+                    DB::raw('SUM(CASE WHEN status = "approved" THEN amount ELSE 0 END) as total_refunded_amount')
+                )
+                ->first();
+
+            // Thống kê theo danh mục
+            $categoryStats = Category::withCount(['products' => function($query) use ($startDate, $endDate) {
+                    $query->whereBetween('created_at', [$startDate, $endDate]);
+                }])
+                ->withSum(['products.orderItems as total_sold' => function($query) use ($startDate, $endDate) {
+                    $query->whereBetween('created_at', [$startDate, $endDate]);
+                }], 'quantity')
+                ->orderByDesc('total_sold')
+                ->get();
+
             $data = [
                 'overview' => $overview,
                 'order_status_stats' => $orderStatusStats,
@@ -131,6 +166,9 @@ class DashboardController extends Controller
                 'payment_method_stats' => $paymentMethodStats,
                 'review_stats' => $reviewStats,
                 'top_selling_products' => $topSellingProducts,
+                'voucher_stats' => $voucherStats,
+                'refund_stats' => $refundStats,
+                'category_stats' => $categoryStats,
             ];
 
             // Cache kết quả trong 1 giờ
