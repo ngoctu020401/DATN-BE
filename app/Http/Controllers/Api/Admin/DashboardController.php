@@ -20,23 +20,35 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         try {
-            // Lấy thời gian từ request hoặc mặc định là tháng hiện tại
-            $startDate = $request->get('start_date', Carbon::now()->startOfMonth());
-            $endDate = $request->get('end_date', Carbon::now()->endOfMonth());
+            // Validate thời gian đầu vào
+            $request->validate([
+                'start_date' => 'nullable|date',
+                'end_date' => 'nullable|date|after_or_equal:start_date',
+            ]);
 
-            // Cache key dựa trên thời gian
-            $cacheKey = "dashboard_stats_{$startDate}_{$endDate}";
+            // Chuẩn hóa thời gian
+            $startDate = $request->has('start_date')
+                ? Carbon::parse($request->get('start_date'))->startOfDay()
+                : Carbon::now()->startOfMonth();
 
-            // Kiểm tra cache trước khi thực hiện query
+            $endDate = $request->has('end_date')
+                ? Carbon::parse($request->get('end_date'))->endOfDay()
+                : Carbon::now()->endOfMonth();
+
+            // Cache key dựa theo ngày lọc
+            $cacheKey = "dashboard_stats_{$startDate->toDateString()}_{$endDate->toDateString()}";
+
+            // Trả cache nếu có
             if (Cache::has($cacheKey)) {
                 return response()->json(Cache::get($cacheKey));
             }
 
-            // Thống kê tổng quan
+            // -------- BẮT ĐẦU TÍNH TOÁN DỮ LIỆU --------
+
             $overview = [
                 'total_orders' => Order::whereBetween('created_at', [$startDate, $endDate])->count(),
                 'total_revenue' => Order::whereBetween('created_at', [$startDate, $endDate])
-                    ->where('order_status_id', '!=', 6) // Không tính đơn hủy
+                    ->where('order_status_id', '!=', 6)
                     ->sum('final_amount'),
                 'total_users' => User::whereBetween('created_at', [$startDate, $endDate])->count(),
                 'total_products' => Product::whereBetween('created_at', [$startDate, $endDate])->count(),
@@ -47,14 +59,12 @@ class DashboardController extends Controller
                 'conversion_rate' => $this->calculateConversionRate($startDate, $endDate),
             ];
 
-            // Thống kê đơn hàng theo trạng thái
             $orderStatusStats = Order::whereBetween('created_at', [$startDate, $endDate])
                 ->select('order_status_id', DB::raw('count(*) as total'))
                 ->groupBy('order_status_id')
                 ->with('status:id,name')
                 ->get();
 
-            // Thống kê hủy và hoàn tiền
             $cancelAndRefundStats = Order::whereBetween('created_at', [$startDate, $endDate])
                 ->select(
                     DB::raw('COUNT(CASE WHEN order_status_id = 6 THEN 1 END) as total_cancelled'),
@@ -65,7 +75,6 @@ class DashboardController extends Controller
                 )
                 ->first();
 
-            // Tính tỷ lệ phần trăm
             $cancelAndRefundStats->cancel_rate = $cancelAndRefundStats->total_orders > 0
                 ? round(($cancelAndRefundStats->total_cancelled / $cancelAndRefundStats->total_orders) * 100, 2)
                 : 0;
@@ -73,7 +82,6 @@ class DashboardController extends Controller
                 ? round(($cancelAndRefundStats->total_refunded / $cancelAndRefundStats->total_orders) * 100, 2)
                 : 0;
 
-            // Thống kê doanh thu theo ngày
             $revenueByDay = Order::whereBetween('created_at', [$startDate, $endDate])
                 ->where('order_status_id', '!=', 6)
                 ->select(
@@ -86,7 +94,6 @@ class DashboardController extends Controller
                 ->orderBy('date')
                 ->get();
 
-            // Thống kê đơn hàng chờ xác nhận
             $pendingOrders = Order::where('order_status_id', 1)
                 ->select(
                     DB::raw('COUNT(*) as total'),
@@ -94,7 +101,6 @@ class DashboardController extends Controller
                 )
                 ->first();
 
-            // Thống kê phương thức thanh toán
             $paymentMethodStats = Order::whereBetween('created_at', [$startDate, $endDate])
                 ->select(
                     'payment_method',
@@ -106,7 +112,6 @@ class DashboardController extends Controller
                 ->groupBy('payment_method')
                 ->get();
 
-            // Thống kê đánh giá
             $reviewStats = Review::whereBetween('created_at', [$startDate, $endDate])
                 ->select(
                     DB::raw('AVG(rating) as average_rating'),
@@ -116,18 +121,16 @@ class DashboardController extends Controller
                 )
                 ->first();
 
-            // Thống kê sản phẩm bán chạy
-            $topSellingProducts = Product::withCount(['orderItems as total_sold' => function($query) use ($startDate, $endDate) {
+            $topSellingProducts = Product::withCount(['orderItems as total_sold' => function ($query) use ($startDate, $endDate) {
                     $query->whereBetween('created_at', [$startDate, $endDate]);
                 }])
-                ->withSum(['orderItems as total_revenue' => function($query) use ($startDate, $endDate) {
+                ->withSum(['orderItems as total_revenue' => function ($query) use ($startDate, $endDate) {
                     $query->whereBetween('created_at', [$startDate, $endDate]);
                 }], 'price')
                 ->orderByDesc('total_sold')
                 ->limit(5)
                 ->get();
 
-            // Thống kê voucher
             $voucherStats = Voucher::whereBetween('created_at', [$startDate, $endDate])
                 ->select(
                     DB::raw('COUNT(*) as total_vouchers'),
@@ -137,7 +140,6 @@ class DashboardController extends Controller
                 )
                 ->first();
 
-            // Thống kê yêu cầu hoàn tiền
             $refundStats = RefundRequest::whereBetween('created_at', [$startDate, $endDate])
                 ->select(
                     DB::raw('COUNT(*) as total_requests'),
@@ -147,17 +149,20 @@ class DashboardController extends Controller
                 )
                 ->first();
 
-            // Thống kê theo danh mục
-            $categoryStats = Category::withCount(['products' => function($query) use ($startDate, $endDate) {
+            $categoryStats = Category::withCount(['products' => function ($query) use ($startDate, $endDate) {
                     $query->whereBetween('created_at', [$startDate, $endDate]);
                 }])
-                ->withSum(['products.orderItems as total_sold' => function($query) use ($startDate, $endDate) {
+                ->withSum(['products.orderItems as total_sold' => function ($query) use ($startDate, $endDate) {
                     $query->whereBetween('created_at', [$startDate, $endDate]);
                 }], 'quantity')
                 ->orderByDesc('total_sold')
                 ->get();
 
+            // Kết quả trả về
             $data = [
+                'start_date' => $startDate->toDateString(),
+                'end_date' => $endDate->toDateString(),
+
                 'overview' => $overview,
                 'order_status_stats' => $orderStatusStats,
                 'cancel_and_refund_stats' => $cancelAndRefundStats,
@@ -171,10 +176,9 @@ class DashboardController extends Controller
                 'category_stats' => $categoryStats,
             ];
 
-            // Cache kết quả trong 1 giờ
             Cache::put($cacheKey, $data, 3600);
-
             return response()->json($data);
+
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Lỗi khi lấy dữ liệu thống kê',
@@ -182,6 +186,7 @@ class DashboardController extends Controller
             ], 500);
         }
     }
+
 
     private function calculateAverageOrderValue($startDate, $endDate)
     {

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\CategoryController;
 use App\Http\Controllers\Api\Admin\ColorController;
+use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\OrderController;
 use App\Http\Controllers\Api\Admin\ProductController;
 use App\Http\Controllers\Api\Admin\ReviewController;
@@ -152,6 +153,8 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('{id}', [VoucherController::class, 'update']);  // Cập nhật voucher
             Route::delete('{id}', [VoucherController::class, 'destroy']); // Xóa voucher
         });
+        //
+        Route::get('/dashboard', [DashboardController::class, 'index']);
         //
         Route::prefix('reviews')->group(function () {
             Route::get('/', [ReviewController::class, 'index']);         // Danh sách đánh giá
