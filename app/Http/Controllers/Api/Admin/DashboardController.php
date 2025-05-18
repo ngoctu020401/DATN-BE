@@ -163,11 +163,21 @@ class DashboardController extends Controller
             $categoryStats = Category::withCount(['products' => function ($query) use ($startDate, $endDate) {
                     $query->whereBetween('created_at', [$startDate, $endDate]);
                 }])
-                ->withSum(['products.orderItems as total_sold' => function ($query) use ($startDate, $endDate) {
-                    $query->whereBetween('order_items.created_at', [$startDate, $endDate]);
-                }], 'quantity')
-                ->orderByDesc('total_sold')
-                ->get();
+                ->with(['products' => function ($query) use ($startDate, $endDate) {
+                    $query->withCount(['orderItems as total_sold' => function ($query) use ($startDate, $endDate) {
+                        $query->whereBetween('order_items.created_at', [$startDate, $endDate]);
+                    }])
+                    ->withSum(['orderItems as total_revenue' => function ($query) use ($startDate, $endDate) {
+                        $query->whereBetween('order_items.created_at', [$startDate, $endDate]);
+                    }], 'product_price');
+                }])
+                ->get()
+                ->map(function ($category) {
+                    $category->total_sold = $category->products->sum('total_sold');
+                    $category->total_revenue = $category->products->sum('total_revenue');
+                    return $category;
+                })
+                ->sortByDesc('total_sold');
 
             // Kết quả trả về
             $data = [
