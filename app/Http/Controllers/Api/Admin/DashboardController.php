@@ -101,14 +101,15 @@ class DashboardController extends Controller
                 )
                 ->first();
 
+            $totalOrders = Order::whereBetween('created_at', [$startDate, $endDate])->count();
+
             $paymentMethodStats = Order::whereBetween('created_at', [$startDate, $endDate])
                 ->select(
                     'payment_method',
                     DB::raw('count(*) as total'),
                     DB::raw('SUM(final_amount) as total_amount'),
-                    DB::raw('ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM orders WHERE created_at BETWEEN ? AND ?), 2) as percentage')
+                    DB::raw("ROUND(COUNT(*) * 100.0 / {$totalOrders}, 2) as percentage")
                 )
-                ->setBindings([$startDate, $endDate])
                 ->groupBy('payment_method')
                 ->get();
 
