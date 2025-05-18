@@ -32,6 +32,13 @@ class Product extends Model
 
     public function orderItems()
     {
-        return $this->hasManyThrough(OrderItem::class, ProductVariation::class);
+        return $this->hasManyThrough(
+            OrderItem::class,
+            ProductVariation::class,
+            'product_id', // Foreign key on product_variations table
+            'variation_id', // Foreign key on order_items table
+            'id', // Local key on products table
+            'id' // Local key on product_variations table
+        );
     }
 }

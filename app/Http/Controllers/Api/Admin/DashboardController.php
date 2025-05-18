@@ -45,10 +45,11 @@ class DashboardController extends Controller
 
             // -------- BẮT ĐẦU TÍNH TOÁN DỮ LIỆU --------
 
+            // 1. Thống kê tổng quan
             $overview = [
                 'total_orders' => Order::whereBetween('created_at', [$startDate, $endDate])->count(),
                 'total_revenue' => Order::whereBetween('created_at', [$startDate, $endDate])
-                    ->where('order_status_id', '!=', 6)
+                    ->where('order_status_id', '!=', 6) // Không tính đơn hủy
                     ->sum('final_amount'),
                 'total_users' => User::whereBetween('created_at', [$startDate, $endDate])->count(),
                 'total_products' => Product::whereBetween('created_at', [$startDate, $endDate])->count(),
@@ -59,12 +60,14 @@ class DashboardController extends Controller
                 'conversion_rate' => $this->calculateConversionRate($startDate, $endDate),
             ];
 
+            // 2. Thống kê trạng thái đơn hàng
             $orderStatusStats = Order::whereBetween('created_at', [$startDate, $endDate])
                 ->select('order_status_id', DB::raw('count(*) as total'))
                 ->groupBy('order_status_id')
                 ->with('status:id,name')
                 ->get();
 
+            // 3. Thống kê hủy và hoàn tiền
             $cancelAndRefundStats = Order::whereBetween('created_at', [$startDate, $endDate])
                 ->select(
                     DB::raw('COUNT(CASE WHEN order_status_id = 6 THEN 1 END) as total_cancelled'),
@@ -82,8 +85,9 @@ class DashboardController extends Controller
                 ? round(($cancelAndRefundStats->total_refunded / $cancelAndRefundStats->total_orders) * 100, 2)
                 : 0;
 
+            // 4. Thống kê doanh thu theo ngày
             $revenueByDay = Order::whereBetween('created_at', [$startDate, $endDate])
-                ->where('order_status_id', '!=', 6)
+                ->where('order_status_id', '!=', 6) // Không tính đơn hủy
                 ->select(
                     DB::raw('DATE(created_at) as date'),
                     DB::raw('SUM(final_amount) as total_revenue'),
@@ -94,6 +98,7 @@ class DashboardController extends Controller
                 ->orderBy('date')
                 ->get();
 
+            // 5. Thống kê đơn hàng đang chờ
             $pendingOrders = Order::where('order_status_id', 1)
                 ->select(
                     DB::raw('COUNT(*) as total'),
@@ -101,8 +106,8 @@ class DashboardController extends Controller
                 )
                 ->first();
 
+            // 6. Thống kê phương thức thanh toán
             $totalOrders = Order::whereBetween('created_at', [$startDate, $endDate])->count();
-
             $paymentMethodStats = Order::whereBetween('created_at', [$startDate, $endDate])
                 ->select(
                     'payment_method',
@@ -113,6 +118,7 @@ class DashboardController extends Controller
                 ->groupBy('payment_method')
                 ->get();
 
+            // 7. Thống kê đánh giá
             $reviewStats = Review::whereBetween('created_at', [$startDate, $endDate])
                 ->select(
                     DB::raw('AVG(rating) as average_rating'),
@@ -122,16 +128,18 @@ class DashboardController extends Controller
                 )
                 ->first();
 
+            // 8. Top sản phẩm bán chạy
             $topSellingProducts = Product::withCount(['orderItems as total_sold' => function ($query) use ($startDate, $endDate) {
                     $query->whereBetween('order_items.created_at', [$startDate, $endDate]);
                 }])
                 ->withSum(['orderItems as total_revenue' => function ($query) use ($startDate, $endDate) {
                     $query->whereBetween('order_items.created_at', [$startDate, $endDate]);
-                }], 'price')
+                }], 'product_price')
                 ->orderByDesc('total_sold')
                 ->limit(5)
                 ->get();
 
+            // 9. Thống kê voucher
             $voucherStats = Voucher::whereBetween('created_at', [$startDate, $endDate])
                 ->select(
                     DB::raw('COUNT(*) as total_vouchers'),
@@ -141,6 +149,7 @@ class DashboardController extends Controller
                 )
                 ->first();
 
+            // 10. Thống kê hoàn tiền
             $refundStats = RefundRequest::whereBetween('created_at', [$startDate, $endDate])
                 ->select(
                     DB::raw('COUNT(*) as total_requests'),
@@ -150,11 +159,12 @@ class DashboardController extends Controller
                 )
                 ->first();
 
+            // 11. Thống kê danh mục
             $categoryStats = Category::withCount(['products' => function ($query) use ($startDate, $endDate) {
                     $query->whereBetween('created_at', [$startDate, $endDate]);
                 }])
                 ->withSum(['products.orderItems as total_sold' => function ($query) use ($startDate, $endDate) {
-                    $query->whereBetween('created_at', [$startDate, $endDate]);
+                    $query->whereBetween('order_items.created_at', [$startDate, $endDate]);
                 }], 'quantity')
                 ->orderByDesc('total_sold')
                 ->get();
@@ -188,14 +198,13 @@ class DashboardController extends Controller
         }
     }
 
-
     private function calculateAverageOrderValue($startDate, $endDate)
     {
         $totalRevenue = Order::whereBetween('created_at', [$startDate, $endDate])
-            ->where('order_status_id', '!=', 6)
+            ->where('order_status_id', '!=', 6) // Không tính đơn hủy
             ->sum('final_amount');
         $totalOrders = Order::whereBetween('created_at', [$startDate, $endDate])
-            ->where('order_status_id', '!=', 6)
+            ->where('order_status_id', '!=', 6) // Không tính đơn hủy
             ->count();
 
         return $totalOrders > 0 ? round($totalRevenue / $totalOrders, 2) : 0;
@@ -205,7 +214,7 @@ class DashboardController extends Controller
     {
         $totalUsers = User::whereBetween('created_at', [$startDate, $endDate])->count();
         $totalOrders = Order::whereBetween('created_at', [$startDate, $endDate])
-            ->where('order_status_id', '!=', 6)
+            ->where('order_status_id', '!=', 6) // Không tính đơn hủy
             ->count();
 
         return $totalUsers > 0 ? round(($totalOrders / $totalUsers) * 100, 2) : 0;
