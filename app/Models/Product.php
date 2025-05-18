@@ -26,8 +26,12 @@ class Product extends Model
         return $this->hasMany(ProductVariation::class);
     }
     public function variationMinPrice()
-{
-    return $this->hasOne(ProductVariation::class)->orderBy('price');
-}
+    {
+        return $this->hasOne(ProductVariation::class)->orderBy('price');
+    }
 
+    public function orderItems()
+    {
+        return $this->hasManyThrough(OrderItem::class, ProductVariation::class);
+    }
 }
