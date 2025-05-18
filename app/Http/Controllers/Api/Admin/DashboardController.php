@@ -123,10 +123,10 @@ class DashboardController extends Controller
                 ->first();
 
             $topSellingProducts = Product::withCount(['orderItems as total_sold' => function ($query) use ($startDate, $endDate) {
-                    $query->whereBetween('created_at', [$startDate, $endDate]);
+                    $query->whereBetween('order_items.created_at', [$startDate, $endDate]);
                 }])
                 ->withSum(['orderItems as total_revenue' => function ($query) use ($startDate, $endDate) {
-                    $query->whereBetween('created_at', [$startDate, $endDate]);
+                    $query->whereBetween('order_items.created_at', [$startDate, $endDate]);
                 }], 'price')
                 ->orderByDesc('total_sold')
                 ->limit(5)
