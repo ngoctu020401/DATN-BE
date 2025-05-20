@@ -91,7 +91,7 @@ class OrderController extends Controller
                 'amount' => $order->voucher->amount,
                 'type' => $order->voucher->type,
             ] : null,
-            'refund_request' => $order->refundRequest ? [
+            'refund' => $order->refundRequest ? [
                 'id' => $order->refundRequest->id,
                 'order_id' => $order->refundRequest->order_id,
                 'user_id' => $order->refundRequest->user_id,

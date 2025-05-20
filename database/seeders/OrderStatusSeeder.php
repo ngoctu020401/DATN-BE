@@ -20,7 +20,7 @@ class OrderStatusSeeder extends Seeder
             ['id' => 8, 'name' => 'Hoàn tiền thành công'],
         ];
 
-        
+
         foreach ($statuses as $status) {
             OrderStatus::updateOrCreate(['id' => $status['id']], [
                 'name' => $status['name'],
@@ -29,7 +29,7 @@ class OrderStatusSeeder extends Seeder
 
         // Thiết lập trạng thái kế tiếp
         OrderStatus::where('id', 1)->update(['next_status' => json_encode([2, 6])]);
-        OrderStatus::where('id', 2)->update(['next_status' => json_encode([3,6])]);
+        OrderStatus::where('id', 2)->update(['next_status' => json_encode([3])]);
         OrderStatus::where('id', 3)->update(['next_status' => json_encode([4])]);
         OrderStatus::where('id', 4)->update(['next_status' => json_encode([5,7])]); // Đã giao → hoàn thành hoặc yêu cầu hoàn tiền
         OrderStatus::where('id', 5)->update(['next_status' => json_encode([])]);
