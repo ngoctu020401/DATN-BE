@@ -11,6 +11,7 @@ use App\Models\OrderItem;
 use App\Models\PaymentOnline;
 use App\Models\ProductVariation;
 use App\Models\RefundRequest;
+use App\Models\Voucher;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,7 +31,9 @@ class OrderClientController extends Controller
             'shipping_name' => 'required|string|max:255',         // Tên người nhận
             'shipping_phone' => 'required|string|max:20',         // Số điện thoại nhận hàng
             'shipping_email' => 'nullable|email',                 // Email có thể có hoặc không
-            'note' => 'nullable|string'                           // Ghi chú đơn hàng
+            'note' => 'nullable|string',                          // Ghi chú đơn hàng
+            'discount_amount' => 'nullable',
+            'voucher_code' => 'nullable|string|exists:vouchers,code' // Mã voucher (nếu có)
         ]);
 
         //2: Lấy thông tin user đang đăng nhập
@@ -47,100 +50,115 @@ class OrderClientController extends Controller
             ->get();
 
         // Nếu không tìm thấy sản phẩm hợp lệ, trả lỗi
-        if ($cartItems->isEmpty()) { // Nếu trống trả về true
-            return response()->json(['message' => 'Không tìm thấy sản phẩm hợp lệ trong giỏ hàng.'], 400);
+        if ($cartItems->isEmpty()) {
+            return response()->json(['message' => 'Không tìm thấy sản phẩm hợp lệ trong giỏ hàng'], 400);
         }
 
-        //4: Tính tổng tiền đơn hàng, đồng thời kiểm tra tồn kho từng sản phẩm
-        $totalAmount = 0;
-        foreach ($cartItems as $item) {
-            // Nếu số lượng mua lớn hơn tồn kho, trả lỗi
-            if ($item->quantity > $item->variation->stock_quantity) {
+        //4: Tính tổng tiền đơn hàng
+        $totalAmount = $cartItems->sum(function ($item) {
+            return ($item->variation->sale_price ?? $item->variation->price) * $item->quantity;
+        });
+
+        //5: Kiểm tra và xử lý voucher nếu có
+        $voucher = null;
+        $discountAmount = $request->discount_amount ?? 0;
+
+        if ($request->has('voucher_code')) {
+            $voucher = Voucher::where('code', $request->voucher_code)
+                ->where('is_active', true)
+                ->where(function ($query) {
+                    $query->whereNull('expiry_date')
+                        ->orWhere('expiry_date', '>=', now());
+                })
+                ->where(function ($query) {
+                    $query->whereNull('usage_limit')
+                        ->orWhere('usage_limit', '>', 0);
+                })
+                ->first();
+
+            if (!$voucher) {
+                return response()->json(['message' => 'Mã voucher không hợp lệ hoặc đã hết hạn'], 400);
+            }
+
+            // Kiểm tra giá trị đơn hàng tối thiểu
+            if ($voucher->min_product_price && $totalAmount < $voucher->min_product_price) {
                 return response()->json([
-                    'message' => "Sản phẩm {$item->variation->name} không đủ hàng tồn."
+                    'message' => 'Giá trị đơn hàng không đủ điều kiện áp dụng voucher',
+                    'min_amount' => $voucher->min_product_price
                 ], 400);
             }
-
-            // Lấy giá ưu tiên giá khuyến mãi nếu có, không thì lấy giá gốc
-            $price = ($item->variation->sale_price !== null && $item->variation->sale_price > 0)
-                ? $item->variation->sale_price
-                : $item->variation->price;
-
-            // Cộng dồn tổng tiền
-            $totalAmount += $item->quantity * $price;
         }
 
-        //5: Bắt đầu transaction để đảm bảo toàn bộ các thao tác atomically
-        DB::beginTransaction();
-        try {
-            //6: Tạo đơn hàng mới
-            $order = Order::create([
-                'user_id' => $userId,
-                'order_code' => 'ORD' . time(),   // Mã đơn hàng dựa trên timestamp
-                'total_amount' => $totalAmount,   // Tổng tiền đơn chưa ship
-                'final_amount' => $totalAmount + 30000, // Tổng thanh toán đã cộng phí ship (30k mặc định)
-                'payment_method' => $paymentMethod,
-                'address' => $request->shipping_address,
-                'name' => $request->shipping_name,
-                'phone' => $request->shipping_phone,
-                'email' => $request->shipping_email,
-                'note' => $request->note,
-                'order_status_id' => 1,            // Mặc định trạng thái đơn hàng: Đang chờ xác nhận
-                'payment_status_id' => 1,          // Mặc định trạng thái thanh toán: Chưa thanh toán
-                'shipping' => 30000,               // Phí ship cố định
-            ]);
+        //6: Tạo đơn hàng mới
+        $order = Order::create([
+            'user_id' => $userId,
+            'order_code' => 'ORD' . time(),   // Mã đơn hàng dựa trên timestamp
+            'total_amount' => $totalAmount,   // Tổng tiền đơn chưa ship
+            'discount_amount' => $discountAmount, // Số tiền giảm giá từ request
+            'final_amount' => $totalAmount + 30000 - $discountAmount, // Tổng thanh toán đã cộng phí ship và trừ giảm giá
+            'payment_method' => $paymentMethod,
+            'address' => $request->shipping_address,
+            'name' => $request->shipping_name,
+            'phone' => $request->shipping_phone,
+            'email' => $request->shipping_email,
+            'note' => $request->note,
+            'order_status_id' => 1,            // Mặc định trạng thái đơn hàng: Đang chờ xác nhận
+            'payment_status_id' => 1,          // Mặc định trạng thái thanh toán: Chưa thanh toán
+            'shipping' => 30000,               // Phí ship cố định
+            'voucher_id' => $voucher ? $voucher->id : null, // Lưu voucher ID nếu có
+        ]);
 
-            //7: Lưu từng sản phẩm trong đơn hàng và trừ tồn kho
-            foreach ($cartItems as $item) {
-                OrderItem::create([
-                    'order_id' => $order->id,
-                    'product_name' => $item->variation->product->name,
-                    'variation_id' => $item->variation_id,
-                    'product_price' => ($item->variation->sale_price ?? 0) > 0
-                        ? $item->variation->sale_price
-                        : $item->variation->price,
-                    'quantity' => $item->quantity,
-                    'image' => $item->variation->product->main_image,
-                    'variation' => $item->variation->getVariation()
-                ]);
-
-                // Trừ số lượng tồn kho tương ứng
-                $item->variation->decrement('stock_quantity', $item->quantity);
+        // Nếu có voucher, tăng số lần sử dụng và giảm số lượng còn lại
+        if ($voucher) {
+            $voucher->increment('times_used');
+            if ($voucher->usage_limit) {
+                $voucher->decrement('usage_limit');
             }
+        }
 
-            //8: Nếu thanh toán qua VNPAY, tạo URL thanh toán và cập nhật vào đơn
-            if ($paymentMethod === 'vnpay') {
-                $paymentUrl = $this->createPaymentUrl($order);
-                $order->update(['payment_url' => $paymentUrl]);
-            }
-
-            //9: Xóa những cart item đã thanh toán khỏi giỏ hàng
-            CartItem::whereIn('id', $cartItemIds)->delete();
-
-            //10: Ghi log lịch sử đơn hàng
-            OrderHistory::create([
+        //7: Lưu từng sản phẩm trong đơn hàng và trừ tồn kho
+        foreach ($cartItems as $item) {
+            OrderItem::create([
                 'order_id' => $order->id,
-                'order_status_id' => 1,
-                'user_change' => 'system'
+                'product_name' => $item->variation->product->name,
+                'variation_id' => $item->variation_id,
+                'product_price' => ($item->variation->sale_price ?? 0) > 0
+                    ? $item->variation->sale_price
+                    : $item->variation->price,
+                'quantity' => $item->quantity,
+                'image' => $item->variation->product->main_image,
+                'variation' => $item->variation->getVariation()
             ]);
 
-            //11: Commit transaction sau khi mọi thao tác thành công
-            DB::commit();
-
-            //12: Trả về dữ liệu đơn hàng thành công cho client
-            return response()->json([
-                'message' => 'Tạo đơn hàng thành công',
-                'order_code' => $order->order_code,
-                'payment_url' => $order->payment_url ?? null
-            ], 201);
-        } catch (\Throwable $th) {
-            // Nếu có lỗi, rollback transaction và trả lỗi
-            DB::rollBack();
-            return response()->json([
-                'message' => 'Tạo đơn hàng thất bại',
-                'error' => $th->getMessage()
-            ], 500);
+            // Trừ số lượng tồn kho tương ứng
+            $item->variation->decrement('stock_quantity', $item->quantity);
         }
+
+        //8: Nếu thanh toán qua VNPAY, tạo URL thanh toán và cập nhật vào đơn
+        if ($paymentMethod === 'vnpay') {
+            $paymentUrl = $this->createPaymentUrl($order);
+            $order->update(['payment_url' => $paymentUrl]);
+        }
+
+        //9: Xóa những cart item đã thanh toán khỏi giỏ hàng
+        CartItem::whereIn('id', $cartItemIds)->delete();
+
+        //10: Ghi log lịch sử đơn hàng
+        OrderHistory::create([
+            'order_id' => $order->id,
+            'order_status_id' => 1,
+            'user_change' => 'system'
+        ]);
+
+        //11: Commit transaction sau khi mọi thao tác thành công
+        DB::commit();
+
+        //12: Trả về dữ liệu đơn hàng thành công cho client
+        return response()->json([
+            'message' => 'Tạo đơn hàng thành công',
+            'order_code' => $order->order_code,
+            'payment_url' => $order->payment_url ?? null
+        ], 201);
     }
 
     //Xử lí thanh toán thành công hay thất bại
@@ -215,7 +233,7 @@ class OrderClientController extends Controller
         $vnp_TxnRef = $order->order_code; // mã đơn hagf
         $vnp_OrderInfo = "Thanh toán hóa đơn " . $order->order_code; // ghi chú
         $vnp_OrderType = "100002";
-        $vnp_Amount = $order->final_amount * 100; // tổng tiền đơn hàng 
+        $vnp_Amount = $order->final_amount * 100; // tổng tiền đơn hàng
         $vnp_Locale = "VN";
         $vnp_IpAddr = $_SERVER['REMOTE_ADDR'];
         $inputData = [
@@ -332,7 +350,8 @@ class OrderClientController extends Controller
             'status',
             'paymentStatus',
             'refundRequest',
-            'reviews'
+            'reviews',
+            'voucher'
         ])->where('user_id', $userId)->findOrFail($id);
 
         $refund = $order->refundRequest;
@@ -355,11 +374,20 @@ class OrderClientController extends Controller
             ],
             'payment_method' => $order->payment_method,
             'total_amount' => $order->total_amount,
+            'discount_amount' => $order->discount_amount,
             'final_amount' => $order->final_amount,
             'shipping' => $order->shipping,
             'note' => $order->note,
             'cancel_reason' => $order->cancel_reason,
             'created_at' => $order->created_at->format('d-m-Y H:i'),
+            'voucher' => $order->voucher ? [
+                'id' => $order->voucher->id,
+                'code' => $order->voucher->code,
+                'name' => $order->voucher->name,
+                'discount_percent' => $order->voucher->discount_percent,
+                'amount' => $order->voucher->amount,
+                'type' => $order->voucher->type,
+            ] : null,
 
             // Sản phẩm trong đơn
             'items' => $order->items->map(function ($item) {
@@ -374,7 +402,7 @@ class OrderClientController extends Controller
                     'review' => $item->review
                 ];
             }),
-            // lịch sử đơn hàng 
+            // lịch sử đơn hàng
             'histories' => $order->histories->map(function ($history) {
                 return [
                     'id' => $history->id,
@@ -415,6 +443,9 @@ class OrderClientController extends Controller
 
         $request->validate([
             'cancel_reason' => 'required|string|max:255',
+            'bank_name' => 'required_if:payment_status_id,2|string|max:100',
+            'bank_account_name' => 'required_if:payment_status_id,2|string|max:100',
+            'bank_account_number' => 'required_if:payment_status_id,2|string|max:50',
         ]);
 
         $order = Order::where('user_id', $userId)
@@ -437,6 +468,16 @@ class OrderClientController extends Controller
                 }
             }
         }
+        // Hoàn lại voucher nếu đơn hàng có sử dụng voucher
+        if ($order->voucher_id) {
+            $voucher = Voucher::find($order->voucher_id);
+            if ($voucher) {
+                $voucher->decrement('times_used');
+                if ($voucher->usage_limit) {
+                    $voucher->increment('usage_limit');
+                }
+            }
+        }
         // Ghi lịch sử huỷ đơn
         OrderHistory::create([
             'user_change' => $user->role . ' - ' . $user->email,
@@ -455,6 +496,9 @@ class OrderClientController extends Controller
                 'reason' => 'Tự động tạo và duyệt yêu cầu hoàn tiền do khách huỷ đơn hàng đã thanh toán.',
                 'status' => 'approved',
                 'approved_at' => now(),
+                'bank_name' => $request->bank_name,
+                'bank_account_name' => $request->bank_account_name,
+                'bank_account_number' => $request->bank_account_number,
             ]);
         }
 

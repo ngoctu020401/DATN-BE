@@ -8,6 +8,7 @@ use App\Models\OrderHistory;
 use App\Models\OrderStatus;
 use App\Models\ProductVariation;
 use App\Models\RefundRequest;
+use App\Models\Voucher;
 use Illuminate\Http\Request;
 
 class OrderController extends Controller
@@ -53,7 +54,9 @@ class OrderController extends Controller
             'user',
             'status',
             'paymentStatus',
-            'histories.status'        // Nếu lịch sử có quan hệ với status
+            'histories.status',        // Nếu lịch sử có quan hệ với status
+            'voucher',                 // Thêm relationship với voucher
+            'refundRequest'            // Thêm relationship với refundRequest
         ])->findOrFail($id);
 
         return response()->json([
@@ -67,11 +70,11 @@ class OrderController extends Controller
             'note' => $order->note,
             'cancel_reason' => $order->cancel_reason,
             'total_amount' => $order->total_amount,
+            'discount_amount' => $order->discount_amount,
             'shipping' => $order->shipping,
             'final_amount' => $order->final_amount,
             'payment_url' => $order->payment_url,
             'payment_method' => $order->payment_method,
-            'refund' => $order->refundRequest,
             'status' => [
                 'id' => $order->status->id ?? null,
                 'name' => $order->status->name ?? 'Không xác định',
@@ -80,13 +83,33 @@ class OrderController extends Controller
                 'id' => $order->paymentStatus->id ?? null,
                 'name' => $order->paymentStatus->name ?? 'Không xác định',
             ],
-            'payment_method' => $order->payment_method,
-            'payment_url' => $order->payment_url,
-            'shipping' => $order->shipping,
-            'amounts' => [
-                'total' => $order->total_amount,
-                'final' => $order->final_amount,
-            ],
+            'voucher' => $order->voucher ? [
+                'id' => $order->voucher->id,
+                'code' => $order->voucher->code,
+                'name' => $order->voucher->name,
+                'discount_percent' => $order->voucher->discount_percent,
+                'amount' => $order->voucher->amount,
+                'type' => $order->voucher->type,
+            ] : null,
+            'refund_request' => $order->refundRequest ? [
+                'id' => $order->refundRequest->id,
+                'order_id' => $order->refundRequest->order_id,
+                'user_id' => $order->refundRequest->user_id,
+                'type' => $order->refundRequest->type,
+                'amount' => $order->refundRequest->amount,
+                'reason' => $order->refundRequest->reason,
+                'images' => $order->refundRequest->images,
+                'status' => $order->refundRequest->status,
+                'reject_reason' => $order->refundRequest->reject_reason,
+                'bank_name' => $order->refundRequest->bank_name,
+                'bank_account_name' => $order->refundRequest->bank_account_name,
+                'bank_account_number' => $order->refundRequest->bank_account_number,
+                'approved_at' => optional($order->refundRequest->approved_at)->format('d-m-Y H:i'),
+                'refunded_at' => optional($order->refundRequest->refunded_at)->format('d-m-Y H:i'),
+                'proof_image_url' => $order->refundRequest->refund_proof_image
+                    ? asset('storage/' . $order->refundRequest->refund_proof_image)
+                    : null,
+            ] : null,
             'items' => $order->items->map(function ($item) {
                 return [
                     'id' => $item->id,
@@ -149,6 +172,17 @@ class OrderController extends Controller
                     $variant = ProductVariation::find($item->variation_id);
                     if ($variant) {
                         $variant->increment('stock_quantity', $item->quantity);
+                    }
+                }
+            }
+
+            // Nếu đơn hàng có sử dụng voucher, giảm số lần sử dụng
+            if ($order->voucher_id) {
+                $voucher = Voucher::find($order->voucher_id);
+                if ($voucher) {
+                    $voucher->decrement('times_used');
+                    if ($voucher->usage_limit) {
+                        $voucher->increment('usage_limit');
                     }
                 }
             }
@@ -262,6 +296,17 @@ class OrderController extends Controller
                         if ($variant) {
                             $variant->increment('stock_quantity', $item->quantity);
                         }
+                    }
+                }
+            }
+
+            // Hoàn lại voucher nếu đơn hàng có sử dụng voucher
+            if ($refund->order->voucher_id) {
+                $voucher = Voucher::find($refund->order->voucher_id);
+                if ($voucher) {
+                    $voucher->decrement('times_used');
+                    if ($voucher->usage_limit) {
+                        $voucher->increment('usage_limit');
                     }
                 }
             }

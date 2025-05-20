@@ -19,6 +19,7 @@ class Order extends Model
         'cancel_reason',
         'total_amount',
         'shipping',
+        'discount_amount',
         'final_amount',
         'payment_url',
         'payment_method',
@@ -26,7 +27,7 @@ class Order extends Model
         'payment_status_id',
         'closed_at',
     ];
-    
+
     // Relationships
     public function items()
     {
@@ -58,10 +59,15 @@ class Order extends Model
     }
     public function paymentOnlines()
     {
-        return $this->hasMany(RefundRequest::class);
+        return $this->hasMany(PaymentOnline::class);
     }
-        public function reviews()
+    public function reviews()
     {
         return $this->hasMany(Review::class);
+    }
+
+    public function voucher()
+    {
+        return $this->belongsTo(Voucher::class);
     }
 }

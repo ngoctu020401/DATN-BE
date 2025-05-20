@@ -33,9 +33,11 @@ use Illuminate\Support\Facades\Route;
 Route::post('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/signup', [AuthController::class, 'signup']);
 Route::get('/profile', [AuthController::class, 'profile']);
+ Route::get('/vnpay/return', [OrderClientController::class, 'vnpayReturn']);
 Route::put('/user/profile', [AuthController::class, 'updateProfile']);
 Route::post('/user/change-password', [AuthController::class, 'changePassword']);
 Route::get('/list-voucher', [VoucherClientController::class, 'getValidVouchers']);
+Route::get('admin/orders/status', [OrderController::class, 'orderStatus']); // danh sách đơn hàng
 //  Sản phẩm mới
 Route::get('/new-products', [HomeController::class, 'newProdutcs']);
 
@@ -84,7 +86,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/checkout', [OrderClientController::class, 'store']);
 
     // VNPAY callback xử lý kết quả thanh toán
-    Route::get('/vnpay/return', [OrderClientController::class, 'vnpayReturn']);
+   
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::prefix('admin')->middleware('admin')->group(function () { // Chức năng cần là tài khoản admin
         // Kích thước (Size)
@@ -111,10 +113,8 @@ Route::middleware('auth:sanctum')->group(function () {
         //Đơn hàng
         Route::prefix('orders')->group(function () {
             Route::get('/', [OrderController::class, 'index']); // danh sách đơn hàng
-            Route::get('/status', [OrderController::class, 'orderStatus']); // danh sách đơn hàng
             Route::get('{id}', [OrderController::class, 'show']); // chi tiết đơn hàng
             Route::post('{id}/change-status', [OrderController::class, 'changeStatus']); // cập nhật trạng thái
-
             Route::post('refunds/{id}/approve', [OrderController::class, 'approveRefund']); // duyệt hoàn tiền
             Route::post('refunds/{id}/reject', [OrderController::class, 'rejectRefund']); // từ chối hoàn tiền
             Route::post('refunds/{id}/refunded', [OrderController::class, 'markAsRefunded']); // xác nhận đã hoàn tiền
