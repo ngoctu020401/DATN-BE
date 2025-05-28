@@ -55,6 +55,10 @@ Route::get('/categories/{id}/products', [HomeController::class, 'productByCatego
 
 // Chi tiết sản phẩm
 Route::get('/product-detail/{id}', [Product::class, 'productDetail']);
+
+// Đánh giá sản phẩm
+Route::get('/products/{id}/reviews', [ReviewClientController::class, 'getProductReviews']);
+
 //
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -86,7 +90,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/checkout', [OrderClientController::class, 'store']);
 
     // VNPAY callback xử lý kết quả thanh toán
-   
+
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::prefix('admin')->middleware('admin')->group(function () { // Chức năng cần là tài khoản admin
         // Kích thước (Size)

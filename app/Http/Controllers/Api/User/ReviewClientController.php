@@ -150,5 +150,46 @@ class ReviewClientController extends Controller
         }
     }
     //
-    
+    public function getProductReviews($productId)
+    {
+        try {
+            $reviews = Review::with(['user', 'orderItem'])
+                ->where('product_id', $productId)
+                ->where('is_active', true)
+                ->orderBy('created_at', 'desc')
+                ->paginate(10);
+
+            // Tính toán thống kê đánh giá
+            $stats = [
+                'total' => Review::where('product_id', $productId)->where('is_active', true)->count(),
+                'average_rating' => Review::where('product_id', $productId)
+                    ->where('is_active', true)
+                    ->avg('rating'),
+                'rating_counts' => [
+                    5 => Review::where('product_id', $productId)->where('rating', 5)->where('is_active', true)->count(),
+                    4 => Review::where('product_id', $productId)->where('rating', 4)->where('is_active', true)->count(),
+                    3 => Review::where('product_id', $productId)->where('rating', 3)->where('is_active', true)->count(),
+                    2 => Review::where('product_id', $productId)->where('rating', 2)->where('is_active', true)->count(),
+                    1 => Review::where('product_id', $productId)->where('rating', 1)->where('is_active', true)->count(),
+                ]
+            ];
+
+            return response()->json([
+                'stats' => $stats,
+                'reviews' => $reviews->items(),
+                'pagination' => [
+                    'total' => $reviews->total(),
+                    'per_page' => $reviews->perPage(),
+                    'current_page' => $reviews->currentPage(),
+                    'last_page' => $reviews->lastPage(),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Lỗi khi lấy danh sách đánh giá',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
 }
