@@ -21,21 +21,20 @@ class AuthController extends Controller
         ]);
 
         $user = User::where('email', $request->email)->first(); // Lấy ra bản ghi có email giống vs email đc gửi lên
-        if(!$user){
-                return response()->json([
-                'message' => 'Tài khoản không tồn tại',
-                'reason' => $user->inactive_reason,
-            ], 404); 
+        if (!$user) {
+            return response()->json([
+                'message' => 'Tài khoản không tồn tại'
+            ], 404);
         }
+
         if (!$user->is_active) { // Kiểm tra xem tài khoản có bị khóa hay không
             return response()->json([
-                'message' => 'Tài khoản của bạn đã bị khóa',
-                'reason' => $user->inactive_reason,
+                'message' => 'Tài khoản của bạn không hoạt động',
             ], 403);
         }
 
         // Kiểm tra mật khẩu có đúng hay không
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Email hoặc mật khẩu không chính xác!'], 401);
         }
 
