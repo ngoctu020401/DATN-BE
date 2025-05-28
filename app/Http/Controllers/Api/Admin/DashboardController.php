@@ -33,7 +33,7 @@ class DashboardController extends Controller
 
             $endDate = $request->has('end_date')
                 ? Carbon::parse($request->get('end_date'))->endOfDay()
-                : Carbon::now()->endOfMonth();
+                : Carbon::now();
 
             // Cache key dựa theo ngày lọc
             $cacheKey = "dashboard_stats_{$startDate->toDateString()}_{$endDate->toDateString()}";
