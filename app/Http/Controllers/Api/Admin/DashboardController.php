@@ -27,8 +27,7 @@ class DashboardController extends Controller
 
             // Chuẩn hóa thời gian
             $startDate = $request->has('start_date')
-                ? Carbon::parse($request->get('start_date'))->startOfDay()
-                : Carbon::now()->startOfMonth();
+                ? Carbon::parse($request->get('start_date'))->startOfDay():Carbon::now()->startOfDay();
 
             $endDate = $request->has('end_date')
                 ? Carbon::parse($request->get('end_date'))->endOfDay()
