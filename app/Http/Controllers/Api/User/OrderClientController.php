@@ -56,7 +56,7 @@ class OrderClientController extends Controller
 
         //4: Tính tổng tiền đơn hàng
         $totalAmount = $cartItems->sum(function ($item) {
-            return ($item->variation->sale_price ?? $item->variation->price) * $item->quantity;
+            return ($item->variation->sale_price > 0 ? $item->variation->sale_price : $item->variation->price) * $item->quantity;
         });
 
         //5: Kiểm tra và xử lý voucher nếu có
