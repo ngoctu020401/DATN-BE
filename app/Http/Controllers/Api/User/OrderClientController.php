@@ -443,16 +443,28 @@ class OrderClientController extends Controller
 
         $request->validate([
             'cancel_reason' => 'required|string|max:255',
-            'bank_name' => 'required_if:payment_status_id,2|string|max:100',
-            'bank_account_name' => 'required_if:payment_status_id,2|string|max:100',
-            'bank_account_number' => 'required_if:payment_status_id,2|string|max:50',
+            'bank_name' => 'nullable|string|max:100',
+            'bank_account_name' => 'nullable|string|max:100',
+            'bank_account_number' => 'nullable|string|max:50',
         ]);
 
         $order = Order::where('user_id', $userId)
             ->whereIn('order_status_id', [1, 2])
             ->findOrFail($id);
 
-
+        // Kiểm tra nếu đơn hàng đã thanh toán thì yêu cầu thông tin ngân hàng
+        if ($order->payment_status_id == 2) {
+            if (!$request->bank_name || !$request->bank_account_name || !$request->bank_account_number) {
+                return response()->json([
+                    'message' => 'Vui lòng cung cấp đầy đủ thông tin ngân hàng để hoàn tiền.',
+                    'errors' => [
+                        'bank_name' => 'Tên ngân hàng là bắt buộc khi đơn hàng đã thanh toán.',
+                        'bank_account_name' => 'Tên tài khoản là bắt buộc khi đơn hàng đã thanh toán.',
+                        'bank_account_number' => 'Số tài khoản là bắt buộc khi đơn hàng đã thanh toán.'
+                    ]
+                ], 422);
+            }
+        }
 
         // Huỷ đơn hàng
         $order->update([

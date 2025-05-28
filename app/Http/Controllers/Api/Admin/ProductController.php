@@ -7,6 +7,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariation;
+use App\Models\CartItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -299,6 +300,9 @@ class ProductController extends Controller
                 ], 422);
             }
 
+            // Xóa các cart items liên quan đến biến thể này
+            CartItem::where('variation_id', $id)->delete();
+
             //  Không bị ràng buộc → tiến hành xóa (soft delete)
             $variation->delete();
 
@@ -367,6 +371,10 @@ class ProductController extends Controller
         }
 
         //  Nếu không có ràng buộc đơn hàng → tiến hành xoá
+
+        // Xóa tất cả cart items liên quan đến các biến thể của sản phẩm
+        $variationIds = $product->variations->pluck('id');
+        CartItem::whereIn('variation_id', $variationIds)->delete();
 
         //  Soft delete sản phẩm (đánh dấu deleted_at)
         $product->delete();

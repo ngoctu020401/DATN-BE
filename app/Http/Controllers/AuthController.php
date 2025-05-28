@@ -21,6 +21,12 @@ class AuthController extends Controller
         ]);
 
         $user = User::where('email', $request->email)->first(); // Lấy ra bản ghi có email giống vs email đc gửi lên
+        if(!$user){
+                return response()->json([
+                'message' => 'Tài khoản không tồn tại',
+                'reason' => $user->inactive_reason,
+            ], 404); 
+        }
         if (!$user->is_active) { // Kiểm tra xem tài khoản có bị khóa hay không
             return response()->json([
                 'message' => 'Tài khoản của bạn đã bị khóa',
