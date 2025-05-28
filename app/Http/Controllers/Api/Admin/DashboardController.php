@@ -33,10 +33,13 @@ class DashboardController extends Controller
 
             $endDate = $request->has('end_date')
                 ? Carbon::parse($request->get('end_date'))->endOfDay()
-                : Carbon::now();
+                : Carbon::now()->endOfDay();
 
             // Cache key dựa theo ngày lọc
-            $cacheKey = "dashboard_stats_{$startDate->toDateString()}_{$endDate->toDateString()}";
+            $cacheKey = "dashboard_stats_{$startDate->format('Y-m-d')}_{$endDate->format('Y-m-d')}";
+
+            // Xóa cache cũ nếu có
+            Cache::forget($cacheKey);
 
             // Trả cache nếu có
             if (Cache::has($cacheKey)) {
