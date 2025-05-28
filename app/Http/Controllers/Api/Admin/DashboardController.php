@@ -13,7 +13,6 @@ use App\Models\RefundRequest;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
 
 class DashboardController extends Controller
 {
@@ -34,17 +33,6 @@ class DashboardController extends Controller
             $endDate = $request->has('end_date')
                 ? Carbon::parse($request->get('end_date'))->endOfDay()
                 : Carbon::now()->endOfDay();
-
-            // Cache key dựa theo ngày lọc
-            $cacheKey = "dashboard_stats_{$startDate->format('Y-m-d')}_{$endDate->format('Y-m-d')}";
-
-            // Xóa cache cũ nếu có
-            Cache::forget($cacheKey);
-
-            // Trả cache nếu có
-            if (Cache::has($cacheKey)) {
-                return response()->json(Cache::get($cacheKey));
-            }
 
             // -------- BẮT ĐẦU TÍNH TOÁN DỮ LIỆU --------
 
@@ -200,7 +188,6 @@ class DashboardController extends Controller
                 'category_stats' => $categoryStats,
             ];
 
-            Cache::put($cacheKey, $data, 3600);
             return response()->json($data);
 
         } catch (\Exception $e) {
